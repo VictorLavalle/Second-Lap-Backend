@@ -41,5 +41,12 @@ public abstract class AbstractPostgresIntegrationTest {
         registry.add("secondlap.cors.allowed-origins", () -> "http://localhost:3000");
         registry.add("secondlap.admin.username", () -> "admin");
         registry.add("secondlap.admin.password", () -> "admin123");
+        // High rate-limit ceilings by default so unrelated ITs sharing the
+        // per-instance buckets never trip the limiter; SecurityHardeningIT
+        // overrides these with low values in its own context.
+        registry.add("secondlap.ratelimit.public-reads.capacity", () -> "100000");
+        registry.add("secondlap.ratelimit.orders.capacity", () -> "100000");
+        registry.add("secondlap.ratelimit.orders-per-whatsapp.capacity", () -> "100000");
+        registry.add("secondlap.ratelimit.admin-login.capacity", () -> "100000");
     }
 }

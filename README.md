@@ -133,3 +133,29 @@ En CI (`ubuntu-latest`) no hace falta: el runner trae Docker en la ruta estánda
 GitHub Actions (`.github/workflows/ci.yml`) corre `./mvnw clean verify` sobre
 JDK 25 (Temurin) con cache de Maven, en cada push a `main` y en cada pull
 request.
+
+## Seguridad
+
+Defensas aplicadas a nivel de aplicación:
+
+- **Rate limiting** (Bucket4j, por instancia): `POST /orders` limitado por IP y
+  además por número de WhatsApp (un mismo número no puede agotar el inventario de
+  piezas únicas); GET públicos con un límite holgado; login admin con límite
+  agresivo (anti fuerza bruta). Al exceder se devuelve `429 Too Many Requests`.
+  Configurable por variables `SECONDLAP_RL_*`.
+- **Límite de items por pedido** (`SECONDLAP_ORDER_MAX_ITEMS`, default 20) como
+  defensa extra contra el agotamiento del catálogo.
+- **Límites de tamaño de request** (multipart y form POST) → `413 Payload Too Large`.
+- **Security headers**: HSTS (en HTTPS), `X-Content-Type-Options`, `X-Frame-Options: DENY`,
+  `Referrer-Policy`, y una CSP restrictiva.
+- **CORS estricto**: solo el origen del frontend, métodos y headers acotados.
+- **HTTPS-only en producción**: el perfil `prod` activa `require-https` (redirige
+  HTTP→HTTPS). En dev se mantiene HTTP para no romper el flujo local.
+- **Errores sin fugas**: el manejo global nunca devuelve stack traces al cliente.
+- **Admin**: HTTP Basic + BCrypt contra `admin_user`; `/api/v1/admin/**` requiere rol ADMIN.
+
+> **DDoS volumétrico:** no es responsabilidad de la aplicación y no se puede
+> resolver en Spring — para cuando el tráfico llega al proceso, el daño ya está
+> hecho. Al desplegar, poné el backend detrás de un CDN/WAF (p. ej. Cloudflare)
+> que absorba el volumen. El rate limiting de la app cubre el abuso de un cliente
+> individual y los scripts, no un ataque distribuido.

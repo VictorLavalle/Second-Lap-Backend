@@ -17,10 +17,15 @@ import java.util.List;
 
 @Configuration
 @EnableConfigurationProperties({CorsProperties.class, StoreProperties.class,
-        com.secondlap.backend.admin.AdminProperties.class})
+        com.secondlap.backend.admin.AdminProperties.class,
+        com.secondlap.backend.order.OrderProperties.class,
+        com.secondlap.backend.ratelimit.RateLimitProperties.class})
 public class SecurityConfig {
 
     private final CorsProperties corsProperties;
+
+    @org.springframework.beans.factory.annotation.Value("${secondlap.security.require-https:false}")
+    private boolean requireHttps;
 
     public SecurityConfig(CorsProperties corsProperties) {
         this.corsProperties = corsProperties;
@@ -28,6 +33,9 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        if (requireHttps) {
+            http.redirectToHttps(org.springframework.security.config.Customizer.withDefaults());
+        }
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 // CSRF is disabled on purpose: this is a stateless REST API
@@ -35,6 +43,17 @@ public class SecurityConfig {
                 // no cookie-based session for a CSRF attack to ride on.
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .headers(headers -> headers
+                        .contentTypeOptions(org.springframework.security.config.Customizer.withDefaults())
+                        .frameOptions(frame -> frame.deny())
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(31536000))
+                        .referrerPolicy(ref -> ref.policy(
+                                org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter
+                                        .ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                        .addHeaderWriter(new org.springframework.security.web.header.writers.StaticHeadersWriter(
+                                "Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/products/**").permitAll()
@@ -58,8 +77,10 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(corsProperties.allowedOrigins());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        config.setExposedHeaders(List.of("Retry-After"));
         config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

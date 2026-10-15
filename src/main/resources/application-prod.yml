@@ -1,0 +1,3 @@
+secondlap:
+  security:
+    require-https: true
