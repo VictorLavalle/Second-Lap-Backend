@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: second-lap-backend
+  profiles:
+    default: dev
+  datasource:
+    url: ${SECONDLAP_DB_URL:jdbc:postgresql://localhost:5432/secondlap}
+    username: ${SECONDLAP_DB_USERNAME:secondlap}
+    password: ${SECONDLAP_DB_PASSWORD:secondlap_dev}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: ${SERVER_PORT:8080}
+
+secondlap:
+  cors:
+    allowed-origins: ${SECONDLAP_CORS_ALLOWED_ORIGINS:http://localhost:3000}
+  storage:
+    local:
+      base-path: ${SECONDLAP_UPLOADS_DIR:./uploads}
+      public-url-prefix: ${SECONDLAP_UPLOADS_URL_PREFIX:/uploads}
+      max-file-size-bytes: ${SECONDLAP_UPLOADS_MAX_BYTES:5242880}
+  store:
+    whatsapp: ${SECONDLAP_STORE_WHATSAPP:529996384026}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
