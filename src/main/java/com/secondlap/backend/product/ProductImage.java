@@ -31,6 +31,12 @@ public class ProductImage {
     protected ProductImage() {
     }
 
+    public ProductImage(Product product, String url, int position) {
+        this.product = product;
+        this.url = url;
+        this.position = position;
+    }
+
     public Long getId() {
         return id;
     }
