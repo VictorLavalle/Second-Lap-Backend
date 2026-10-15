@@ -1,10 +1,12 @@
 package com.secondlap.backend.order;
 
 import com.secondlap.backend.common.ProductNotAvailableException;
+import com.secondlap.backend.common.RateLimitExceededException;
 import com.secondlap.backend.common.ResourceNotFoundException;
 import com.secondlap.backend.config.StoreProperties;
 import com.secondlap.backend.customer.Customer;
 import com.secondlap.backend.customer.CustomerService;
+import com.secondlap.backend.customer.WhatsappNormalizer;
 import com.secondlap.backend.neighborhood.Neighborhood;
 import com.secondlap.backend.neighborhood.NeighborhoodRepository;
 import com.secondlap.backend.order.dto.CreateOrderRequest;
@@ -12,6 +14,7 @@ import com.secondlap.backend.order.dto.OrderResponse;
 import com.secondlap.backend.order.dto.ShippingAddressRequest;
 import com.secondlap.backend.product.Product;
 import com.secondlap.backend.product.ProductRepository;
+import com.secondlap.backend.ratelimit.RateLimitService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,19 +34,25 @@ public class OrderService {
     private final CustomerService customerService;
     private final OrderMapper orderMapper;
     private final StoreProperties storeProperties;
+    private final OrderProperties orderProperties;
+    private final RateLimitService rateLimitService;
 
     public OrderService(ProductRepository productRepository,
                         OrderRepository orderRepository,
                         NeighborhoodRepository neighborhoodRepository,
                         CustomerService customerService,
                         OrderMapper orderMapper,
-                        StoreProperties storeProperties) {
+                        StoreProperties storeProperties,
+                        OrderProperties orderProperties,
+                        RateLimitService rateLimitService) {
         this.productRepository = productRepository;
         this.orderRepository = orderRepository;
         this.neighborhoodRepository = neighborhoodRepository;
         this.customerService = customerService;
         this.orderMapper = orderMapper;
         this.storeProperties = storeProperties;
+        this.orderProperties = orderProperties;
+        this.rateLimitService = rateLimitService;
     }
 
     @Transactional
@@ -51,12 +60,20 @@ public class OrderService {
         DeliveryMethod deliveryMethod = DeliveryMethod.fromValue(request.deliveryMethod());
         PaymentMethod paymentMethod = PaymentMethod.fromValue(request.paymentMethod());
         validateAddressPresence(deliveryMethod, request.address());
+        validateItemCount(request.productIds());
+
+        // Throttle per WhatsApp before touching inventory: a single number must
+        // not drain the unique-piece catalogue by scripting many reservations.
+        String whatsapp = WhatsappNormalizer.normalize(request.customer().whatsapp());
+        if (!rateLimitService.tryConsumeOrderByWhatsapp(whatsapp)) {
+            throw new RateLimitExceededException("Demasiados pedidos para este número, intenta más tarde");
+        }
 
         List<Product> products = loadProductsForReservation(request.productIds());
         reserveAllOrFail(products);
 
         Customer customer = customerService.getOrCreate(
-                request.customer().whatsapp(),
+                whatsapp,
                 request.customer().name(),
                 request.customer().comments());
 
@@ -105,6 +122,13 @@ public class OrderService {
             if (reserved == 0) {
                 throw new ProductNotAvailableException(product.getPublicId().toString());
             }
+        }
+    }
+
+    private void validateItemCount(List<UUID> productIds) {
+        if (productIds.size() > orderProperties.maxItems()) {
+            throw new IllegalArgumentException(
+                    "an order cannot contain more than " + orderProperties.maxItems() + " items");
         }
     }
 
