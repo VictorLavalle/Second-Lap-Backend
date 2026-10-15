@@ -25,6 +25,7 @@
         <sonar.projectKey>second-lap-backend</sonar.projectKey>
         <sonar.projectName>Second Lap Backend</sonar.projectName>
         <sonar.coverage.jacoco.xmlReportPaths>target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+        <sonar.coverage.exclusions>**/SecondLapBackendApplication.java</sonar.coverage.exclusions>
     </properties>
 
     <dependencies>
@@ -145,11 +146,9 @@
                 <version>${jacoco.version}</version>
                 <configuration>
                     <excludes>
-                        <!-- No business logic to cover: main class, config wiring,
-                             property records and the OpenAPI/boot bootstrap. -->
+                        <!-- The main class only wires Spring Boot's bootstrap; its
+                             main() is covered by a dedicated smoke test instead. -->
                         <exclude>**/SecondLapBackendApplication.class</exclude>
-                        <exclude>**/config/**</exclude>
-                        <exclude>**/*Properties.class</exclude>
                     </excludes>
                 </configuration>
                 <executions>
