@@ -32,13 +32,7 @@ public class LocalFileStorageService implements StorageService {
         String extension = ALLOWED_TYPES.get(file.getContentType());
         String safeName = UUID.randomUUID() + "." + extension;
         Path baseDir = Path.of(properties.basePath()).toAbsolutePath().normalize();
-        Path target = baseDir.resolve(safeName).normalize();
-
-        // Defense in depth: a generated UUID name cannot traverse, but verify the
-        // resolved path stays within the base directory before writing.
-        if (!target.startsWith(baseDir)) {
-            throw new InvalidUploadException("Resolved path escapes storage directory");
-        }
+        Path target = resolveWithinBase(baseDir, safeName);
 
         try {
             Files.createDirectories(baseDir);
@@ -50,6 +44,16 @@ public class LocalFileStorageService implements StorageService {
         }
 
         return properties.publicUrlPrefix() + "/" + safeName;
+    }
+
+    // Defense in depth: generated UUID names cannot traverse, but any name is
+    // verified to resolve inside the base directory before it is used.
+    Path resolveWithinBase(Path baseDir, String name) {
+        Path target = baseDir.resolve(name).normalize();
+        if (!target.startsWith(baseDir)) {
+            throw new InvalidUploadException("Resolved path escapes storage directory");
+        }
+        return target;
     }
 
     private void validate(MultipartFile file) {
