@@ -1,6 +1,5 @@
 package com.secondlap.backend.common;
 
-import com.secondlap.backend.common.ProductNotAvailableException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;

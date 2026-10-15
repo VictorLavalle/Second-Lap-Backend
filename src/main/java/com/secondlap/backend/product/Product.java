@@ -72,33 +72,25 @@ public class Product {
     protected Product() {
     }
 
-    public Product(String name, String description, BigDecimal price, Category category,
-                   String size, ProductCondition condition, String brand, String color,
-                   String measurements) {
-        this.name = name;
-        this.description = description;
-        this.price = price;
-        this.category = category;
-        this.size = size;
-        this.condition = condition;
-        this.brand = brand;
-        this.color = color;
-        this.measurements = measurements;
+    public Product(ProductDetails details) {
+        apply(details);
         this.status = ProductStatus.DISPONIBLE;
     }
 
-    public void update(String name, String description, BigDecimal price, Category category,
-                       String size, ProductCondition condition, String brand, String color,
-                       String measurements) {
-        this.name = name;
-        this.description = description;
-        this.price = price;
-        this.category = category;
-        this.size = size;
-        this.condition = condition;
-        this.brand = brand;
-        this.color = color;
-        this.measurements = measurements;
+    public void update(ProductDetails details) {
+        apply(details);
+    }
+
+    private void apply(ProductDetails details) {
+        this.name = details.name();
+        this.description = details.description();
+        this.price = details.price();
+        this.category = details.category();
+        this.size = details.size();
+        this.condition = details.condition();
+        this.brand = details.brand();
+        this.color = details.color();
+        this.measurements = details.measurements();
     }
 
     public void setStatus(ProductStatus status) {

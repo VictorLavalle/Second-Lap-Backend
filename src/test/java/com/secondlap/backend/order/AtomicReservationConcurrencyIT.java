@@ -52,7 +52,7 @@ class AtomicReservationConcurrencyIT extends AbstractPostgresIntegrationTest {
             try {
                 orderService.createOrder(request);
                 wins.incrementAndGet();
-            } catch (ProductNotAvailableException expectedForLoser) {
+            } catch (ProductNotAvailableException _) {
                 conflicts.incrementAndGet();
             }
             return null;
