@@ -1,0 +1,42 @@
+package com.secondlap.backend.common;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class GlobalExceptionHandlerTest {
+
+    private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
+
+    @Test
+    void mapsRateLimitTo429WithRetryAfter() {
+        ResponseEntity<ApiError> response =
+                handler.handleRateLimit(new RateLimitExceededException("slow down"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+        assertThat(response.getHeaders().getFirst("Retry-After")).isEqualTo("60");
+        assertThat(response.getBody().code()).isEqualTo("RATE_LIMITED");
+    }
+
+    @Test
+    void mapsMaxUploadSizeTo413() {
+        ResponseEntity<ApiError> response =
+                handler.handlePayloadTooLarge(new MaxUploadSizeExceededException(5_000_000));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.PAYLOAD_TOO_LARGE);
+        assertThat(response.getBody().code()).isEqualTo("PAYLOAD_TOO_LARGE");
+    }
+
+    @Test
+    void mapsUnexpectedTo500WithoutLeakingDetails() {
+        ResponseEntity<ApiError> response =
+                handler.handleUnexpected(new RuntimeException("stack trace with secrets"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(response.getBody().code()).isEqualTo("INTERNAL_ERROR");
+        assertThat(response.getBody().message()).doesNotContain("secrets");
+    }
+}
