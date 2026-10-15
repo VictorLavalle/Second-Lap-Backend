@@ -21,6 +21,10 @@
         <java.version>25</java.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <testcontainers.version>1.21.4</testcontainers.version>
+        <jacoco.version>0.8.13</jacoco.version>
+        <sonar.projectKey>second-lap-backend</sonar.projectKey>
+        <sonar.projectName>Second Lap Backend</sonar.projectName>
+        <sonar.coverage.jacoco.xmlReportPaths>target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
     </properties>
 
     <dependencies>
@@ -132,6 +136,66 @@
                             <goal>integration-test</goal>
                             <goal>verify</goal>
                         </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <configuration>
+                    <excludes>
+                        <!-- No business logic to cover: main class, config wiring,
+                             property records and the OpenAPI/boot bootstrap. -->
+                        <exclude>**/SecondLapBackendApplication.class</exclude>
+                        <exclude>**/config/**</exclude>
+                        <exclude>**/*Properties.class</exclude>
+                    </excludes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>prepare-agent-integration</id>
+                        <goals>
+                            <goal>prepare-agent-integration</goal>
+                        </goals>
+                    </execution>
+                    <!-- Aggregate unit + integration coverage into a single XML
+                         report so Testcontainers IT (the atomic reservation) count. -->
+                    <execution>
+                        <id>merge-coverage</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>merge</goal>
+                        </goals>
+                        <configuration>
+                            <fileSets>
+                                <fileSet>
+                                    <directory>${project.build.directory}</directory>
+                                    <includes>
+                                        <include>jacoco.exec</include>
+                                        <include>jacoco-it.exec</include>
+                                    </includes>
+                                </fileSet>
+                            </fileSets>
+                            <destFile>${project.build.directory}/jacoco-merged.exec</destFile>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                        <configuration>
+                            <dataFile>${project.build.directory}/jacoco-merged.exec</dataFile>
+                            <outputDirectory>${project.build.directory}/site/jacoco</outputDirectory>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

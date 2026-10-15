@@ -34,21 +34,22 @@ public class AdminProductService {
 
     public ProductResponse create(AdminProductRequest request) {
         Category category = resolveCategory(request.categoryId());
-        Product product = new Product(
-                request.name(), request.description(), request.price(), category,
-                request.size(), ProductCondition.fromValue(request.condition()),
-                request.brand(), request.color(), request.measurements());
+        Product product = new Product(toDetails(request, category));
         return productMapper.toResponse(productRepository.save(product));
     }
 
     public ProductResponse update(UUID publicId, AdminProductRequest request) {
         Product product = getByPublicId(publicId);
         Category category = resolveCategory(request.categoryId());
-        product.update(
+        product.update(toDetails(request, category));
+        return productMapper.toResponse(product);
+    }
+
+    private ProductDetails toDetails(AdminProductRequest request, Category category) {
+        return new ProductDetails(
                 request.name(), request.description(), request.price(), category,
                 request.size(), ProductCondition.fromValue(request.condition()),
                 request.brand(), request.color(), request.measurements());
-        return productMapper.toResponse(product);
     }
 
     public void delete(UUID publicId) {
