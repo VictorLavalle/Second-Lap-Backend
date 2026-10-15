@@ -1,5 +1,6 @@
 package com.secondlap.backend.common;
 
+import com.secondlap.backend.common.ProductNotAvailableException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -16,6 +17,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleNotFound(ResourceNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiError.of("NOT_FOUND", ex.getMessage()));
+    }
+
+    @ExceptionHandler(ProductNotAvailableException.class)
+    public ResponseEntity<ApiError> handleNotAvailable(ProductNotAvailableException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ApiError("PRODUCT_NOT_AVAILABLE", ex.getMessage(),
+                        Map.of("productId", ex.getProductId())));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
