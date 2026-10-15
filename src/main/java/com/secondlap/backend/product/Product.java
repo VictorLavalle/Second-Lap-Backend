@@ -28,7 +28,8 @@ public class Product {
     @Column(name = "id", nullable = false, updatable = false)
     private Long id;
 
-    @Column(name = "public_id", nullable = false, updatable = false)
+    @org.hibernate.annotations.Generated(event = org.hibernate.generator.EventType.INSERT)
+    @Column(name = "public_id", nullable = false, updatable = false, insertable = false)
     private UUID publicId;
 
     @Column(name = "name", nullable = false)
@@ -69,6 +70,50 @@ public class Product {
     private List<ProductImage> images = new ArrayList<>();
 
     protected Product() {
+    }
+
+    public Product(String name, String description, BigDecimal price, Category category,
+                   String size, ProductCondition condition, String brand, String color,
+                   String measurements) {
+        this.name = name;
+        this.description = description;
+        this.price = price;
+        this.category = category;
+        this.size = size;
+        this.condition = condition;
+        this.brand = brand;
+        this.color = color;
+        this.measurements = measurements;
+        this.status = ProductStatus.DISPONIBLE;
+    }
+
+    public void update(String name, String description, BigDecimal price, Category category,
+                       String size, ProductCondition condition, String brand, String color,
+                       String measurements) {
+        this.name = name;
+        this.description = description;
+        this.price = price;
+        this.category = category;
+        this.size = size;
+        this.condition = condition;
+        this.brand = brand;
+        this.color = color;
+        this.measurements = measurements;
+    }
+
+    public void setStatus(ProductStatus status) {
+        this.status = status;
+    }
+
+    public void addImage(String url) {
+        images.add(new ProductImage(this, url, images.size()));
+    }
+
+    public void replaceImages(List<String> urls) {
+        images.clear();
+        for (int position = 0; position < urls.size(); position++) {
+            images.add(new ProductImage(this, urls.get(position), position));
+        }
     }
 
     public Long getId() {

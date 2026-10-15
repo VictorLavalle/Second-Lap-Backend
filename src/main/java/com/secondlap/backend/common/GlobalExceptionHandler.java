@@ -40,4 +40,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest()
                 .body(ApiError.of("BAD_REQUEST", ex.getMessage()));
     }
+
+    @ExceptionHandler(com.secondlap.backend.storage.InvalidUploadException.class)
+    public ResponseEntity<ApiError> handleInvalidUpload(
+            com.secondlap.backend.storage.InvalidUploadException ex) {
+        return ResponseEntity.badRequest()
+                .body(ApiError.of("INVALID_UPLOAD", ex.getMessage()));
+    }
 }
