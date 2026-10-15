@@ -64,4 +64,24 @@ class LocalFileStorageServiceTest {
                 .isInstanceOf(InvalidUploadException.class)
                 .hasMessageContaining("required");
     }
+
+    @Test
+    void rejectsNullFile(@TempDir Path baseDir) {
+        LocalFileStorageService service = new LocalFileStorageService(propertiesFor(baseDir));
+
+        assertThatThrownBy(() -> service.store(null))
+                .isInstanceOf(InvalidUploadException.class)
+                .hasMessageContaining("required");
+    }
+
+    @Test
+    void rejectsMissingContentType(@TempDir Path baseDir) {
+        LocalFileStorageService service = new LocalFileStorageService(propertiesFor(baseDir));
+        MockMultipartFile noType = new MockMultipartFile(
+                "files", "file.bin", null, new byte[]{1, 2, 3});
+
+        assertThatThrownBy(() -> service.store(noType))
+                .isInstanceOf(InvalidUploadException.class)
+                .hasMessageContaining("Unsupported content type");
+    }
 }
