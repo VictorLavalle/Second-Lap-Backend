@@ -32,6 +32,9 @@ secondlap:
       max-file-size-bytes: ${SECONDLAP_UPLOADS_MAX_BYTES:5242880}
   store:
     whatsapp: ${SECONDLAP_STORE_WHATSAPP:529996384026}
+  admin:
+    username: ${SECONDLAP_ADMIN_USERNAME:admin}
+    password: ${SECONDLAP_ADMIN_PASSWORD}
 
 management:
   endpoints:

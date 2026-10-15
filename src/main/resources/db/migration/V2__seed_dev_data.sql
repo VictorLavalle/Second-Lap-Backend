@@ -1,0 +1,3 @@
+-- Development seed intentionally contains no admin credentials. The admin user
+-- is provisioned at startup from environment variables (see AdminUserInitializer),
+-- so no secret is ever committed. Catalog data lives in V3.
