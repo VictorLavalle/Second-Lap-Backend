@@ -121,6 +121,32 @@ class CreateOrderIT extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void reusesCustomerByWhatsappAndUpdatesNameWhenItChanges() throws Exception {
+        java.util.List<String> two = productRepository.findAll().stream()
+                .filter(p -> p.getStatus() == ProductStatus.DISPONIBLE)
+                .map(p -> p.getPublicId().toString())
+                .limit(2)
+                .toList();
+
+        String first = """
+                {"productIds":["%s"],"customer":{"name":"Nombre Viejo","whatsapp":"9993332211"},
+                 "deliveryMethod":"recoger","paymentMethod":"efectivo"}
+                """.formatted(two.get(0));
+        mockMvc.perform(post("/api/v1/orders").contentType(MediaType.APPLICATION_JSON).content(first))
+                .andExpect(status().isCreated());
+
+        String second = """
+                {"productIds":["%s"],"customer":{"name":"Nombre Nuevo","whatsapp":"9993332211"},
+                 "deliveryMethod":"recoger","paymentMethod":"efectivo"}
+                """.formatted(two.get(1));
+        mockMvc.perform(post("/api/v1/orders").contentType(MediaType.APPLICATION_JSON).content(second))
+                .andExpect(status().isCreated());
+
+        assertThat(customerRepository.findByWhatsapp("9993332211").orElseThrow().getName())
+                .isEqualTo("Nombre Nuevo");
+    }
+
+    @Test
     void rejectsPickupOrderThatIncludesAddress() throws Exception {
         String body = """
                 {
@@ -134,6 +160,85 @@ class CreateOrderIT extends AbstractPostgresIntegrationTest {
 
         mockMvc.perform(post("/api/v1/orders").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createsHomeDeliveryOrderResolvingShippingFeeFromNeighborhood() throws Exception {
+        String productId = availableProductId();
+        double price = productRepository.findByPublicId(java.util.UUID.fromString(productId))
+                .orElseThrow().getPrice().doubleValue();
+
+        // 'Caucel' ships with fee 30 in the real seed.
+        String body = """
+                {
+                  "productIds": ["%s"],
+                  "customer": {"name": "Fer", "whatsapp": "9992223344"},
+                  "deliveryMethod": "domicilio",
+                  "paymentMethod": "transferencia",
+                  "address": {
+                    "street": "Calle 1", "betweenStreets": "2 y 4", "neighborhood": "Caucel",
+                    "city": "Mérida", "state": "Yucatán", "postalCode": "97314",
+                    "references": "casa azul", "mapsLink": "https://maps.example/x"
+                  }
+                }
+                """.formatted(productId);
+
+        mockMvc.perform(post("/api/v1/orders").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.deliveryMethod", org.hamcrest.Matchers.is("domicilio")))
+                .andExpect(jsonPath("$.address.neighborhood", org.hamcrest.Matchers.is("Caucel")))
+                .andExpect(jsonPath("$.address.references", org.hamcrest.Matchers.is("casa azul")))
+                .andExpect(jsonPath("$.address.shippingFee").value(numericallyEquals(30.0)))
+                .andExpect(jsonPath("$.shippingFee").value(numericallyEquals(30.0)))
+                .andExpect(jsonPath("$.subtotal").value(numericallyEquals(price)))
+                .andExpect(jsonPath("$.total").value(numericallyEquals(price + 30.0)));
+    }
+
+    @Test
+    void rejectsHomeDeliveryWithoutAddress() throws Exception {
+        String body = """
+                {
+                  "productIds": ["%s"],
+                  "customer": {"name": "Gus", "whatsapp": "9991110000"},
+                  "deliveryMethod": "domicilio",
+                  "paymentMethod": "tarjeta"
+                }
+                """.formatted(availableProductId());
+
+        mockMvc.perform(post("/api/v1/orders").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void returnsNotFoundForUnknownProductInOrder() throws Exception {
+        String body = """
+                {
+                  "productIds": ["00000000-0000-0000-0000-000000000000"],
+                  "customer": {"name": "Hugo", "whatsapp": "9995554444"},
+                  "deliveryMethod": "recoger",
+                  "paymentMethod": "efectivo"
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/orders").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code", org.hamcrest.Matchers.is("NOT_FOUND")));
+    }
+
+    @Test
+    void rejectsOrderWithNoProducts() throws Exception {
+        String body = """
+                {
+                  "productIds": [],
+                  "customer": {"name": "Ivo", "whatsapp": "9996667777"},
+                  "deliveryMethod": "recoger",
+                  "paymentMethod": "efectivo"
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/orders").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", org.hamcrest.Matchers.is("VALIDATION_ERROR")));
     }
 
     // JSON numbers come back as Integer or Double depending on BigDecimal scale

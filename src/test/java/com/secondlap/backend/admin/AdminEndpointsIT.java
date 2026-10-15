@@ -17,9 +17,11 @@ import java.nio.file.Path;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -169,5 +171,95 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
 
         assertThat(productRepository.findByPublicId(java.util.UUID.fromString(productId))
                 .orElseThrow().getStatus()).isEqualTo(ProductStatus.DISPONIBLE);
+    }
+
+    @Test
+    void updatesAndDeletesProduct() throws Exception {
+        String productId = availableProductId();
+        String update = """
+                {
+                  "name": "Nombre actualizado",
+                  "description": "desc",
+                  "price": 199,
+                  "categoryId": "%s",
+                  "size": "L",
+                  "condition": "Buen estado"
+                }
+                """.formatted(anyCategoryId());
+
+        mockMvc.perform(put("/api/v1/admin/products/" + productId)
+                        .with(httpBasic("admin", "admin123"))
+                        .contentType(MediaType.APPLICATION_JSON).content(update))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name", org.hamcrest.Matchers.is("Nombre actualizado")))
+                .andExpect(jsonPath("$.size", org.hamcrest.Matchers.is("L")));
+
+        mockMvc.perform(delete("/api/v1/admin/products/" + productId)
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isNoContent());
+
+        assertThat(productRepository.findByPublicId(java.util.UUID.fromString(productId))).isEmpty();
+    }
+
+    @Test
+    void returnsNotFoundUpdatingUnknownProduct() throws Exception {
+        String update = """
+                {"name":"x","description":"d","price":1,"categoryId":"%s","size":"M","condition":"Excelente"}
+                """.formatted(anyCategoryId());
+        mockMvc.perform(put("/api/v1/admin/products/00000000-0000-0000-0000-000000000000")
+                        .with(httpBasic("admin", "admin123"))
+                        .contentType(MediaType.APPLICATION_JSON).content(update))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void confirmingOrderMarksItsProductsAsSold() throws Exception {
+        String productId = availableProductId();
+        String orderBody = """
+                {
+                  "productIds": ["%s"],
+                  "customer": {"name": "Confirmador", "whatsapp": "9990009999"},
+                  "deliveryMethod": "recoger",
+                  "paymentMethod": "efectivo"
+                }
+                """.formatted(productId);
+        String orderResponse = mockMvc.perform(post("/api/v1/orders")
+                        .contentType(MediaType.APPLICATION_JSON).content(orderBody))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String orderId = com.jayway.jsonpath.JsonPath.parse(orderResponse).read("$.id", String.class);
+
+        mockMvc.perform(patch("/api/v1/admin/orders/" + orderId + "/confirm")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", org.hamcrest.Matchers.is("confirmed")));
+
+        assertThat(productRepository.findByPublicId(java.util.UUID.fromString(productId))
+                .orElseThrow().getStatus()).isEqualTo(ProductStatus.VENDIDO);
+    }
+
+    @Test
+    void listsOrdersForAdmin() throws Exception {
+        String orderBody = """
+                {
+                  "productIds": ["%s"],
+                  "customer": {"name": "Listado", "whatsapp": "9990001234"},
+                  "deliveryMethod": "recoger",
+                  "paymentMethod": "efectivo"
+                }
+                """.formatted(availableProductId());
+        mockMvc.perform(post("/api/v1/orders")
+                .contentType(MediaType.APPLICATION_JSON).content(orderBody)).andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/admin/orders").with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$[0].customer.whatsapp", org.hamcrest.Matchers.is("9990001234")));
+    }
+
+    @Test
+    void rejectsWrongAdminPassword() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/orders").with(httpBasic("admin", "wrong")))
+                .andExpect(status().isUnauthorized());
     }
 }

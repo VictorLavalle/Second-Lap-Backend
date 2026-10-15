@@ -86,4 +86,36 @@ class CatalogReadEndpointsIT extends AbstractPostgresIntegrationTest {
                 .andExpect(jsonPath("$", hasSize(greaterThanOrEqualTo(1))))
                 .andExpect(jsonPath("$[?(@.id == '" + playeraId + "')]", hasSize(0)));
     }
+
+    @Test
+    void filtersBySizeAndConditionAndSortsByPrice() throws Exception {
+        mockMvc.perform(get("/api/v1/products")
+                        .param("size", "32").param("condition", "Como nuevo"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].name", is("Jeans slim azul")));
+
+        mockMvc.perform(get("/api/v1/products").param("sort", "price,asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name", is("Playera básica blanca")));
+    }
+
+    @Test
+    void filtersByCategoryUuidAndFetchesSingleProduct() throws Exception {
+        String listJson = mockMvc.perform(get("/api/v1/categories"))
+                .andReturn().getResponse().getContentAsString();
+        String playerasCategoryId = com.jayway.jsonpath.JsonPath.parse(listJson)
+                .read("$[?(@.name == 'Playeras')].id", java.util.List.class).get(0).toString();
+
+        String productsJson = mockMvc.perform(get("/api/v1/products").param("category", playerasCategoryId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andReturn().getResponse().getContentAsString();
+
+        String oneId = com.jayway.jsonpath.JsonPath.parse(productsJson).read("$[0].id", String.class);
+        mockMvc.perform(get("/api/v1/products/{id}", oneId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id", is(oneId)))
+                .andExpect(jsonPath("$.categoryId", is(playerasCategoryId)));
+    }
 }
