@@ -16,7 +16,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.List;
 
 @Configuration
-@EnableConfigurationProperties({CorsProperties.class, StoreProperties.class})
+@EnableConfigurationProperties({CorsProperties.class, StoreProperties.class,
+        com.secondlap.backend.admin.AdminProperties.class})
 public class SecurityConfig {
 
     private final CorsProperties corsProperties;

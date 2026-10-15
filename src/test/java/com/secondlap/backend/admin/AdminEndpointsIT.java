@@ -35,6 +35,16 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
     @Autowired
     private CategoryRepository categoryRepository;
 
+    @Autowired
+    private com.secondlap.backend.admin.AdminUserInitializer adminUserInitializer;
+
+    // The base class resets the DB before each test, which removes the admin
+    // provisioned at startup; re-run the initializer so Basic auth works per test.
+    @org.junit.jupiter.api.BeforeEach
+    void provisionAdmin() {
+        adminUserInitializer.run(null);
+    }
+
     private String anyCategoryId() {
         return categoryRepository.findAll().get(0).getPublicId().toString();
     }
