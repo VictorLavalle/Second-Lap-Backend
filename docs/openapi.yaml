@@ -1,0 +1,459 @@
+openapi: 3.1.0
+info:
+  title: Second Lap Backend API
+  version: "1.0.0"
+  description: >
+    REST API for the Second Lap second-hand clothing store. Every garment is a
+    unique piece (quantity = 1). Public storefront endpoints are open; admin
+    endpoints require HTTP Basic authentication with the ADMIN role. Money is
+    serialized as a JSON number. Enum values are the exact Spanish strings the
+    frontend consumes.
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development
+
+tags:
+  - name: Catalog
+    description: Public storefront endpoints
+  - name: Orders
+    description: Atomic reservation checkout
+  - name: Admin Products
+    description: Product management (ADMIN)
+  - name: Admin Orders
+    description: Order management (ADMIN)
+
+paths:
+  /products:
+    get:
+      tags: [Catalog]
+      security: []
+      summary: List products with optional filters
+      parameters:
+        - { name: category, in: query, required: false, schema: { type: string, format: uuid }, description: Public UUID of the category }
+        - { name: size, in: query, required: false, schema: { type: string } }
+        - { name: condition, in: query, required: false, schema: { $ref: '#/components/schemas/ProductCondition' } }
+        - { name: status, in: query, required: false, schema: { $ref: '#/components/schemas/ProductStatus' } }
+        - { name: maxPrice, in: query, required: false, schema: { type: number } }
+        - { name: sort, in: query, required: false, schema: { type: string }, description: "e.g. price,asc or price,desc" }
+      responses:
+        '200':
+          description: Matching products
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/ProductResponse' } }
+
+  /products/{id}:
+    get:
+      tags: [Catalog]
+      security: []
+      summary: Get a product by public UUID
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The product
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductResponse' }
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /products/{id}/similar:
+    get:
+      tags: [Catalog]
+      security: []
+      summary: Similar available products in the same category
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: limit, in: query, required: false, schema: { type: integer, default: 8 } }
+      responses:
+        '200':
+          description: Similar products (excludes the product itself)
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/ProductResponse' } }
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /categories:
+    get:
+      tags: [Catalog]
+      security: []
+      summary: List categories ordered by display order
+      responses:
+        '200':
+          description: Categories
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/CategoryResponse' } }
+
+  /neighborhoods:
+    get:
+      tags: [Catalog]
+      security: []
+      summary: List delivery neighborhoods with their fees
+      responses:
+        '200':
+          description: Neighborhoods
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/NeighborhoodResponse' } }
+
+  /orders:
+    post:
+      tags: [Orders]
+      security: []
+      summary: Create an order (atomic reservation of all items)
+      description: >
+        Reserves every item atomically in a single transaction. If any item is no
+        longer available the whole order is rejected with 409 and nothing is
+        reserved. Totals are computed server-side from price snapshots.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateOrderRequest' }
+      responses:
+        '201':
+          description: Order created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderResponse' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: A requested product was already reserved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /admin/products:
+    post:
+      tags: [Admin Products]
+      summary: Create a product
+      security: [{ basicAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminProductRequest' }
+      responses:
+        '201':
+          description: Product created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/products/{id}:
+    put:
+      tags: [Admin Products]
+      summary: Update a product
+      security: [{ basicAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminProductRequest' }
+      responses:
+        '200':
+          description: Product updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Admin Products]
+      summary: Delete a product
+      security: [{ basicAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Product deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/products/{id}/status:
+    patch:
+      tags: [Admin Products]
+      summary: Change a product's status
+      security: [{ basicAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { $ref: '#/components/schemas/ProductStatus' }
+      responses:
+        '200':
+          description: Status changed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/products/{id}/images:
+    post:
+      tags: [Admin Products]
+      summary: Upload one or more product images (multipart)
+      security: [{ basicAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [files]
+              properties:
+                files:
+                  type: array
+                  items: { type: string, format: binary }
+            encoding:
+              files: { contentType: "image/jpeg, image/png, image/webp" }
+      responses:
+        '200':
+          description: Images stored; returns the updated product
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductResponse' }
+        '400':
+          description: Invalid upload (unsupported type, too large or empty)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/orders:
+    get:
+      tags: [Admin Orders]
+      summary: List all orders
+      security: [{ basicAuth: [] }]
+      responses:
+        '200':
+          description: Orders
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/OrderResponse' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /admin/orders/{id}/confirm:
+    patch:
+      tags: [Admin Orders]
+      summary: Confirm an order (its products become 'vendido')
+      security: [{ basicAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Order confirmed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/orders/{id}/cancel:
+    patch:
+      tags: [Admin Orders]
+      summary: Cancel an order (releases its items back to 'disponible')
+      security: [{ basicAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Order cancelled
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+
+  responses:
+    BadRequest:
+      description: Validation or malformed request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Unauthorized:
+      description: Missing or invalid admin credentials
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+
+  schemas:
+    ProductCondition:
+      type: string
+      enum: ["Como nuevo", "Excelente", "Buen estado"]
+    ProductStatus:
+      type: string
+      enum: ["disponible", "apartado", "vendido"]
+    DeliveryMethod:
+      type: string
+      enum: ["recoger", "domicilio", "paqueteria"]
+    PaymentMethod:
+      type: string
+      enum: ["transferencia", "efectivo", "tarjeta"]
+    OrderStatus:
+      type: string
+      enum: ["pending", "confirmed", "cancelled"]
+
+    CategoryResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        order: { type: integer }
+
+    NeighborhoodResponse:
+      type: object
+      properties:
+        name: { type: string }
+        fee: { type: number }
+
+    ProductResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        price: { type: number }
+        images: { type: array, items: { type: string } }
+        categoryId: { type: string, format: uuid }
+        size: { type: string }
+        condition: { $ref: '#/components/schemas/ProductCondition' }
+        brand: { type: [string, "null"] }
+        color: { type: [string, "null"] }
+        measurements: { type: [string, "null"] }
+        status: { $ref: '#/components/schemas/ProductStatus' }
+
+    AdminProductRequest:
+      type: object
+      required: [name, description, price, categoryId, size, condition]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        price: { type: number, minimum: 0 }
+        categoryId: { type: string, format: uuid }
+        size: { type: string }
+        condition: { $ref: '#/components/schemas/ProductCondition' }
+        brand: { type: [string, "null"] }
+        color: { type: [string, "null"] }
+        measurements: { type: [string, "null"] }
+
+    CustomerDetailsRequest:
+      type: object
+      required: [name, whatsapp]
+      properties:
+        name: { type: string }
+        whatsapp: { type: string, description: "Any format; normalized to 10 digits server-side" }
+        comments: { type: [string, "null"] }
+
+    ShippingAddressRequest:
+      type: object
+      required: [street, neighborhood, city, postalCode]
+      properties:
+        street: { type: string }
+        betweenStreets: { type: [string, "null"] }
+        neighborhood: { type: string, description: "Must match a neighborhood name to resolve the shipping fee" }
+        city: { type: string }
+        state: { type: [string, "null"] }
+        postalCode: { type: string }
+        references: { type: [string, "null"] }
+        mapsLink: { type: [string, "null"] }
+
+    CreateOrderRequest:
+      type: object
+      required: [productIds, customer, deliveryMethod, paymentMethod]
+      properties:
+        productIds:
+          type: array
+          minItems: 1
+          items: { type: string, format: uuid }
+        customer: { $ref: '#/components/schemas/CustomerDetailsRequest' }
+        deliveryMethod: { $ref: '#/components/schemas/DeliveryMethod' }
+        paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
+        address:
+          description: "Required for 'domicilio'/'paqueteria'; must be omitted for 'recoger'"
+          oneOf:
+            - { $ref: '#/components/schemas/ShippingAddressRequest' }
+            - { type: "null" }
+
+    OrderItemResponse:
+      type: object
+      properties:
+        productId: { type: string, format: uuid }
+        name: { type: string }
+        size: { type: string }
+        price: { type: number, description: "Price snapshot frozen at order time" }
+
+    CustomerResponse:
+      type: object
+      properties:
+        name: { type: string }
+        whatsapp: { type: string }
+        comments: { type: [string, "null"] }
+
+    ShippingAddressResponse:
+      type: object
+      properties:
+        street: { type: string }
+        betweenStreets: { type: [string, "null"] }
+        neighborhood: { type: string }
+        shippingFee: { type: [number, "null"] }
+        city: { type: string }
+        state: { type: [string, "null"] }
+        postalCode: { type: string }
+        references: { type: [string, "null"] }
+        mapsLink: { type: [string, "null"] }
+
+    OrderResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        items: { type: array, items: { $ref: '#/components/schemas/OrderItemResponse' } }
+        customer: { $ref: '#/components/schemas/CustomerResponse' }
+        deliveryMethod: { $ref: '#/components/schemas/DeliveryMethod' }
+        paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
+        address:
+          oneOf:
+            - { $ref: '#/components/schemas/ShippingAddressResponse' }
+            - { type: "null" }
+        subtotal: { type: number }
+        shippingFee: { type: number }
+        total: { type: number }
+        status: { $ref: '#/components/schemas/OrderStatus' }
+        createdAt: { type: string, format: date-time }
+        storeWhatsapp: { type: string, description: "Store WhatsApp (52 + 10 digits) for building the wa.me link" }
+
+    ApiError:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+        context:
+          type: [object, "null"]
+          additionalProperties: true
