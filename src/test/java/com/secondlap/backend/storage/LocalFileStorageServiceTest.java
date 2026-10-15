@@ -84,4 +84,19 @@ class LocalFileStorageServiceTest {
                 .isInstanceOf(InvalidUploadException.class)
                 .hasMessageContaining("Unsupported content type");
     }
+
+    @Test
+    void wrapsIoFailureWhenBasePathIsNotADirectory(@TempDir Path baseDir) throws Exception {
+        // Make the base path a regular file so createDirectories fails with IOException.
+        Path asFile = baseDir.resolve("not-a-dir");
+        java.nio.file.Files.writeString(asFile, "x");
+        LocalStorageProperties props =
+                new LocalStorageProperties(asFile.toString(), "/uploads", 1_000_000L);
+        LocalFileStorageService service = new LocalFileStorageService(props);
+        MockMultipartFile img = new MockMultipartFile(
+                "files", "p.png", "image/png", new byte[]{1, 2, 3});
+
+        assertThatThrownBy(() -> service.store(img))
+                .isInstanceOf(java.io.UncheckedIOException.class);
+    }
 }
