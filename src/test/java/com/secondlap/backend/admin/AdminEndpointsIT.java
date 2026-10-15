@@ -262,4 +262,23 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
         mockMvc.perform(get("/api/v1/admin/orders").with(httpBasic("admin", "wrong")))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    void returnsNotFoundCreatingProductWithUnknownCategory() throws Exception {
+        String body = """
+                {"name":"X","description":"d","price":10,
+                 "categoryId":"00000000-0000-0000-0000-000000000000","size":"M","condition":"Excelente"}
+                """;
+        mockMvc.perform(post("/api/v1/admin/products")
+                        .with(httpBasic("admin", "admin123"))
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void returnsNotFoundCancellingUnknownOrder() throws Exception {
+        mockMvc.perform(patch("/api/v1/admin/orders/00000000-0000-0000-0000-000000000000/cancel")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isNotFound());
+    }
 }

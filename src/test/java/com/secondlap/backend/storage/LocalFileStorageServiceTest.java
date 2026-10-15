@@ -99,4 +99,13 @@ class LocalFileStorageServiceTest {
         assertThatThrownBy(() -> service.store(img))
                 .isInstanceOf(java.io.UncheckedIOException.class);
     }
+
+    @Test
+    void rejectsNameThatEscapesBaseDirectory(@TempDir Path baseDir) {
+        LocalFileStorageService service = new LocalFileStorageService(propertiesFor(baseDir));
+
+        assertThatThrownBy(() -> service.resolveWithinBase(baseDir, "../escape.png"))
+                .isInstanceOf(InvalidUploadException.class)
+                .hasMessageContaining("escapes storage directory");
+    }
 }

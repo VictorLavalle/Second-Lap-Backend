@@ -226,6 +226,22 @@ class CreateOrderIT extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void returnsNotFoundWhenOneOfSeveralProductsIsUnknown() throws Exception {
+        String body = """
+                {
+                  "productIds": ["%s", "00000000-0000-0000-0000-000000000000"],
+                  "customer": {"name": "Mix", "whatsapp": "9997778888"},
+                  "deliveryMethod": "recoger",
+                  "paymentMethod": "efectivo"
+                }
+                """.formatted(availableProductId());
+
+        mockMvc.perform(post("/api/v1/orders").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code", org.hamcrest.Matchers.is("NOT_FOUND")));
+    }
+
+    @Test
     void rejectsOrderWithNoProducts() throws Exception {
         String body = """
                 {
@@ -239,6 +255,31 @@ class CreateOrderIT extends AbstractPostgresIntegrationTest {
         mockMvc.perform(post("/api/v1/orders").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code", org.hamcrest.Matchers.is("VALIDATION_ERROR")));
+    }
+
+    @Test
+    void homeDeliveryWithUnknownNeighborhoodHasNoShippingFee() throws Exception {
+        String productId = availableProductId();
+        double price = productRepository.findByPublicId(java.util.UUID.fromString(productId))
+                .orElseThrow().getPrice().doubleValue();
+        String body = """
+                {
+                  "productIds": ["%s"],
+                  "customer": {"name": "Zoe", "whatsapp": "9991239876"},
+                  "deliveryMethod": "paqueteria",
+                  "paymentMethod": "transferencia",
+                  "address": {
+                    "street": "Calle X", "neighborhood": "Colonia Inexistente 9999",
+                    "city": "Mérida", "postalCode": "97000"
+                  }
+                }
+                """.formatted(productId);
+
+        mockMvc.perform(post("/api/v1/orders").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.address.shippingFee").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.shippingFee").value(numericallyEquals(0.0)))
+                .andExpect(jsonPath("$.total").value(numericallyEquals(price)));
     }
 
     // JSON numbers come back as Integer or Double depending on BigDecimal scale

@@ -50,4 +50,27 @@ class AdminUserInitializerTest {
         verify(repo, never()).findByUsername(any());
         verify(repo, never()).save(any());
     }
+
+    @Test
+    void doesNothingForEachMissingCredential() {
+        AdminUserRepository repo = mock(AdminUserRepository.class);
+
+        new AdminUserInitializer(repo, encoder, new AdminProperties(null, "p")).run(null);
+        new AdminUserInitializer(repo, encoder, new AdminProperties("  ", "p")).run(null);
+        new AdminUserInitializer(repo, encoder, new AdminProperties("admin", null)).run(null);
+
+        verify(repo, never()).findByUsername(any());
+    }
+
+    @Test
+    void keepsHashWhenPasswordIsUnchanged() {
+        AdminUserRepository repo = mock(AdminUserRepository.class);
+        String hash = encoder.encode("same");
+        AdminUser existing = new AdminUser("admin", hash);
+        when(repo.findByUsername("admin")).thenReturn(java.util.Optional.of(existing));
+
+        new AdminUserInitializer(repo, encoder, new AdminProperties("admin", "same")).run(null);
+
+        assertThat(existing.getPasswordHash()).isEqualTo(hash);
+    }
 }

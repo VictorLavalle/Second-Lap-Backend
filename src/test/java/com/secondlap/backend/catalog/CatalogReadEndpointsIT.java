@@ -98,6 +98,34 @@ class CatalogReadEndpointsIT extends AbstractPostgresIntegrationTest {
         mockMvc.perform(get("/api/v1/products").param("sort", "price,asc"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].name", is("Playera básica blanca")));
+
+        mockMvc.perform(get("/api/v1/products").param("sort", "price,desc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name", is("Tenis deportivos")));
+
+        // single-token sort (no direction) and a blank size filter exercise the
+        // default-direction and blank-guard branches.
+        mockMvc.perform(get("/api/v1/products").param("sort", "name").param("size", ""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(8)));
+
+        // blank sort falls back to the default ordering.
+        mockMvc.perform(get("/api/v1/products").param("sort", ""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(8)));
+    }
+
+    @Test
+    void similarFallsBackToDefaultLimitWhenNonPositive() throws Exception {
+        String listJson = mockMvc.perform(get("/api/v1/products").param("status", "disponible"))
+                .andReturn().getResponse().getContentAsString();
+        String playeraId = com.jayway.jsonpath.JsonPath.parse(listJson)
+                .read("$[?(@.name == 'Playera estampada vintage')].id", java.util.List.class)
+                .get(0).toString();
+
+        mockMvc.perform(get("/api/v1/products/{id}/similar", playeraId).param("limit", "0"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(greaterThanOrEqualTo(1))));
     }
 
     @Test
