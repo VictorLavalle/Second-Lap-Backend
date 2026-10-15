@@ -16,3 +16,9 @@ uploads/
 
 .env
 .env.local
+.env.*.local
+application-local.yml
+application-local.yaml
+application-secrets.yml
+*.pem
+*.key
