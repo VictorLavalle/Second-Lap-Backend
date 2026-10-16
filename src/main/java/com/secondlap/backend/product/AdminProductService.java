@@ -2,10 +2,14 @@ package com.secondlap.backend.product;
 
 import com.secondlap.backend.category.Category;
 import com.secondlap.backend.category.CategoryRepository;
+import com.secondlap.backend.common.PageResponse;
+import com.secondlap.backend.common.PageSupport;
 import com.secondlap.backend.common.ResourceNotFoundException;
 import com.secondlap.backend.product.dto.AdminProductRequest;
 import com.secondlap.backend.product.dto.ProductResponse;
 import com.secondlap.backend.storage.StorageService;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -30,6 +34,19 @@ public class AdminProductService {
         this.categoryRepository = categoryRepository;
         this.productMapper = productMapper;
         this.storageService = storageService;
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<ProductResponse> list(String status, String sort, int page, int size) {
+        ProductStatus statusFilter = status != null && !status.isBlank()
+                ? ProductStatus.fromValue(status)
+                : null;
+        Specification<Product> spec = (root, query, cb) -> statusFilter == null
+                ? cb.conjunction()
+                : cb.equal(root.get("status"), statusFilter);
+        Pageable pageable = PageSupport.toPageable(page, size, ProductSort.parse(sort));
+        return PageResponse.from(
+                productRepository.findAll(spec, pageable).map(productMapper::toResponse));
     }
 
     public ProductResponse create(AdminProductRequest request) {

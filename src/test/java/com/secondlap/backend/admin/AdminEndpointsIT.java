@@ -66,6 +66,66 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void listProductsRequiresAuth() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/products"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void listsProductsPaginatedWithDefaultsFilterSortAndClamp() throws Exception {
+        // default page/size: 8 seeded products fit in one page of 25
+        mockMvc.perform(get("/api/v1/admin/products").with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", org.hamcrest.Matchers.hasSize(8)))
+                .andExpect(jsonPath("$.totalElements", org.hamcrest.Matchers.is(8)))
+                .andExpect(jsonPath("$.totalPages", org.hamcrest.Matchers.is(1)))
+                .andExpect(jsonPath("$.number", org.hamcrest.Matchers.is(0)))
+                .andExpect(jsonPath("$.size", org.hamcrest.Matchers.is(25)));
+
+        // allowed sizes are honoured
+        mockMvc.perform(get("/api/v1/admin/products").param("size", "10").with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size", org.hamcrest.Matchers.is(10)))
+                .andExpect(jsonPath("$.totalPages", org.hamcrest.Matchers.is(1)));
+        mockMvc.perform(get("/api/v1/admin/products").param("size", "50").with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size", org.hamcrest.Matchers.is(50)));
+        mockMvc.perform(get("/api/v1/admin/products").param("size", "100").with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size", org.hamcrest.Matchers.is(100)));
+
+        // page=1 with a size that splits the 8 products: first page full, second has the rest
+        mockMvc.perform(get("/api/v1/admin/products").param("size", "10").param("page", "1")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.number", org.hamcrest.Matchers.is(1)))
+                .andExpect(jsonPath("$.content", org.hamcrest.Matchers.hasSize(0)));
+
+        // status filter: only the single 'apartado' seeded product
+        mockMvc.perform(get("/api/v1/admin/products").param("status", "apartado")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements", org.hamcrest.Matchers.is(1)))
+                .andExpect(jsonPath("$.content[0].status", org.hamcrest.Matchers.is("apartado")));
+
+        // whitelisted sort works; invalid sort falls back without 500
+        mockMvc.perform(get("/api/v1/admin/products").param("sort", "price,asc")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/admin/products").param("sort", "nope,asc")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements", org.hamcrest.Matchers.is(8)));
+
+        // clamp: out-of-set size -> 25, negative page -> 0 (no 500)
+        mockMvc.perform(get("/api/v1/admin/products").param("size", "100000").param("page", "-1")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size", org.hamcrest.Matchers.is(25)))
+                .andExpect(jsonPath("$.number", org.hamcrest.Matchers.is(0)));
+    }
+
+    @Test
     void meReturnsAuthenticatedAdminUsername() throws Exception {
         mockMvc.perform(get("/api/v1/admin/me").with(httpBasic("admin", "admin123")))
                 .andExpect(status().isOk())
