@@ -337,20 +337,69 @@
         },
         {
           "name": "PATCH cancelar orden ya cancelada (espera 409)",
-          "description": "Reutiliza {{orderId}} ya cancelada; solo PENDING puede transicionar, así que debe devolver 409.",
+          "description": "Autosuficiente: en el prerequest crea un producto, hace un pedido y lo cancela; luego la petición re-cancela esa misma orden. Solo PENDING puede transicionar, así que debe devolver 409. No depende del orden de ejecución.",
           "request": {
             "method": "PATCH",
             "header": [],
-            "url": { "raw": "{{apiBase}}/admin/orders/{{orderId}}/cancel", "host": ["{{apiBase}}"], "path": ["admin", "orders", "{{orderId}}", "cancel"] }
+            "url": { "raw": "{{apiBase}}/admin/orders/{{cancelledOrderId}}/cancel", "host": ["{{apiBase}}"], "path": ["admin", "orders", "{{cancelledOrderId}}", "cancel"] }
           },
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const apiBase = pm.variables.replaceIn('{{apiBase}}');",
+                  "const user = pm.variables.replaceIn('{{adminUser}}');",
+                  "const pass = pm.variables.replaceIn('{{adminPassword}}');",
+                  "const basic = 'Basic ' + btoa(user + ':' + pass);",
+                  "",
+                  "function ensureCategory(cb) {",
+                  "  const existing = pm.environment.get('categoryId');",
+                  "  if (existing) return cb(existing);",
+                  "  pm.sendRequest({ url: apiBase + '/categories', method: 'GET' }, (e, r) => {",
+                  "    const id = r.json()[0].id; pm.environment.set('categoryId', id); cb(id);",
+                  "  });",
+                  "}",
+                  "",
+                  "ensureCategory((categoryId) => {",
+                  "  const product = {",
+                  "    name: 'Prueba transición', description: 'temporal', price: 100,",
+                  "    categoryId, size: 'M', condition: 'Excelente'",
+                  "  };",
+                  "  pm.sendRequest({",
+                  "    url: apiBase + '/admin/products', method: 'POST',",
+                  "    header: { 'Content-Type': 'application/json', 'Authorization': basic },",
+                  "    body: { mode: 'raw', raw: JSON.stringify(product) }",
+                  "  }, (e, r) => {",
+                  "    const productId = r.json().id;",
+                  "    const order = {",
+                  "      productIds: [productId], deliveryMethod: 'recoger', paymentMethod: 'efectivo',",
+                  "      customer: { name: 'Transición', whatsapp: '9990009090' }",
+                  "    };",
+                  "    pm.sendRequest({",
+                  "      url: apiBase + '/orders', method: 'POST',",
+                  "      header: { 'Content-Type': 'application/json' },",
+                  "      body: { mode: 'raw', raw: JSON.stringify(order) }",
+                  "    }, (e2, r2) => {",
+                  "      const orderId = r2.json().id;",
+                  "      pm.sendRequest({",
+                  "        url: apiBase + '/admin/orders/' + orderId + '/cancel', method: 'PATCH',",
+                  "        header: { 'Authorization': basic }",
+                  "      }, () => { pm.environment.set('cancelledOrderId', orderId); });",
+                  "    });",
+                  "  });",
+                  "});"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
                 "exec": [
                   "pm.test('409 Conflict en transición inválida', () => pm.response.to.have.status(409));",
                   "const b = pm.response.json();",
-                  "pm.test('código INVALID_ORDER_TRANSITION', () => pm.expect(b.code).to.eql('INVALID_ORDER_TRANSITION'));"
+                  "pm.test('código INVALID_ORDER_TRANSITION', () => pm.expect(b.code).to.eql('INVALID_ORDER_TRANSITION'));",
+                  "pm.environment.unset('cancelledOrderId');"
                 ]
               }
             }
