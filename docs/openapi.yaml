@@ -17,6 +17,8 @@ tags:
     description: Public storefront endpoints
   - name: Orders
     description: Atomic reservation checkout
+  - name: Admin
+    description: Admin session (ADMIN)
   - name: Admin Products
     description: Product management (ADMIN)
   - name: Admin Orders
@@ -239,6 +241,22 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /admin/me:
+    get:
+      tags: [Admin]
+      summary: Session check — returns the authenticated admin
+      description: >
+        Lightweight endpoint for a server-side BFF to validate admin credentials
+        on login without side effects. Does not touch the catalog or orders.
+      security: [{ basicAuth: [] }]
+      responses:
+        '200':
+          description: The authenticated admin
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminMeResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
   /admin/orders:
     get:
       tags: [Admin Orders]
@@ -327,6 +345,11 @@ components:
         id: { type: string, format: uuid }
         name: { type: string }
         order: { type: integer }
+
+    AdminMeResponse:
+      type: object
+      properties:
+        username: { type: string }
 
     NeighborhoodResponse:
       type: object

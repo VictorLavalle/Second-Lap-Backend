@@ -208,6 +208,26 @@
       },
       "item": [
         {
+          "name": "GET /admin/me (verificar sesión)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{apiBase}}/admin/me", "host": ["{{apiBase}}"], "path": ["admin", "me"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('devuelve username', () => pm.expect(b.username).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "POST crear producto",
           "request": {
             "method": "POST",

@@ -66,6 +66,25 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void meReturnsAuthenticatedAdminUsername() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/me").with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username", org.hamcrest.Matchers.is("admin")));
+    }
+
+    @Test
+    void meRejectsMissingCredentials() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/me"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void meRejectsInvalidCredentials() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/me").with(httpBasic("admin", "wrong")))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void createsProductWithBasicAuth() throws Exception {
         String body = """
                 {
