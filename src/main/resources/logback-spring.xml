@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <!-- dev/default: human-readable console with the request id from the MDC. -->
+    <!-- dev/default: human-readable coloured console (Spring Boot's default
+         palette) with the request id from the MDC prepended. -->
     <springProfile name="dev,default">
+        <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
         <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
             <encoder>
-                <pattern>%d{HH:mm:ss.SSS} %-5level [%X{requestId:-}] %logger{36} - %msg%n</pattern>
+                <pattern>%clr([%X{requestId:-}]){faint} ${CONSOLE_LOG_PATTERN}</pattern>
+                <charset>UTF-8</charset>
             </encoder>
         </appender>
         <root level="INFO">
