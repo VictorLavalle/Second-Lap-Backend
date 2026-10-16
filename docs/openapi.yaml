@@ -29,20 +29,22 @@ paths:
     get:
       tags: [Catalog]
       security: []
-      summary: List products with optional filters
+      summary: List products (paginated, with optional filters)
       parameters:
         - { name: category, in: query, required: false, schema: { type: string, format: uuid }, description: Public UUID of the category }
-        - { name: size, in: query, required: false, schema: { type: string } }
+        - { name: size, in: query, required: false, schema: { type: string }, description: "Garment size filter (e.g. M) — not pagination" }
         - { name: condition, in: query, required: false, schema: { $ref: '#/components/schemas/ProductCondition' } }
         - { name: status, in: query, required: false, schema: { $ref: '#/components/schemas/ProductStatus' } }
         - { name: maxPrice, in: query, required: false, schema: { type: number } }
         - { name: sort, in: query, required: false, schema: { type: string }, description: "e.g. price,asc or price,desc" }
+        - { name: page, in: query, required: false, schema: { type: integer, default: 0, minimum: 0 }, description: 0-based page index }
+        - { name: pageSize, in: query, required: false, schema: { type: integer, default: 12 }, description: "Page size (named pageSize to avoid clashing with the garment 'size' filter); clamped to 1..60, default 12" }
       responses:
         '200':
-          description: Matching products
+          description: A page of matching products
           content:
             application/json:
-              schema: { type: array, items: { $ref: '#/components/schemas/ProductResponse' } }
+              schema: { $ref: '#/components/schemas/ProductPage' }
 
   /products/{id}:
     get:
@@ -479,6 +481,7 @@ components:
         totalPages: { type: integer }
         number: { type: integer, description: 0-based page index }
         size: { type: integer }
+        last: { type: boolean, description: true on the final page }
 
     AdminProductRequest:
       type: object
@@ -607,6 +610,7 @@ components:
         totalPages: { type: integer }
         number: { type: integer, description: 0-based page index }
         size: { type: integer }
+        last: { type: boolean, description: true on the final page }
 
     ApiError:
       type: object
