@@ -376,4 +376,96 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
                         .with(httpBasic("admin", "admin123")))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void runsFullFulfillmentLifecycleStampingMilestonesAndEvents() throws Exception {
+        String orderId = placeOrder("Ciclo", "9990007777");
+
+        mockMvc.perform(patch("/api/v1/admin/orders/" + orderId + "/confirm")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", org.hamcrest.Matchers.is("confirmed")))
+                .andExpect(jsonPath("$.confirmedAt", org.hamcrest.Matchers.notNullValue()))
+                .andExpect(jsonPath("$.events", org.hamcrest.Matchers.hasSize(2)));
+
+        mockMvc.perform(patch("/api/v1/admin/orders/" + orderId + "/complete")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", org.hamcrest.Matchers.is("completed")))
+                .andExpect(jsonPath("$.completedAt", org.hamcrest.Matchers.notNullValue()))
+                .andExpect(jsonPath("$.events", org.hamcrest.Matchers.hasSize(3)));
+
+        mockMvc.perform(patch("/api/v1/admin/orders/" + orderId + "/deliver")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", org.hamcrest.Matchers.is("delivered")))
+                .andExpect(jsonPath("$.deliveredAt", org.hamcrest.Matchers.notNullValue()))
+                .andExpect(jsonPath("$.events", org.hamcrest.Matchers.hasSize(4)))
+                .andExpect(jsonPath("$.events[0].toStatus", org.hamcrest.Matchers.is("pending")))
+                .andExpect(jsonPath("$.events[0].fromStatus", org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.events[3].toStatus", org.hamcrest.Matchers.is("delivered")));
+    }
+
+    @Test
+    void rejectsCompletingAPendingOrderWithoutAdvancingState() throws Exception {
+        String orderId = placeOrder("SinConfirmar", "9990008888");
+
+        mockMvc.perform(patch("/api/v1/admin/orders/" + orderId + "/complete")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code", org.hamcrest.Matchers.is("INVALID_ORDER_TRANSITION")));
+
+        mockMvc.perform(get("/api/v1/admin/orders/" + orderId).with(httpBasic("admin", "admin123")))
+                .andExpect(jsonPath("$.status", org.hamcrest.Matchers.is("pending")))
+                .andExpect(jsonPath("$.completedAt", org.hamcrest.Matchers.nullValue()));
+    }
+
+    @Test
+    void rejectsDeliveringAConfirmedOrder() throws Exception {
+        String orderId = placeOrder("SoloConfirmado", "9990009191");
+
+        mockMvc.perform(patch("/api/v1/admin/orders/" + orderId + "/confirm")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/v1/admin/orders/" + orderId + "/deliver")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code", org.hamcrest.Matchers.is("INVALID_ORDER_TRANSITION")));
+    }
+
+    @Test
+    void getsSingleOrderWithTimelineInOrder() throws Exception {
+        String orderId = placeOrder("Detalle", "9990001010");
+
+        mockMvc.perform(get("/api/v1/admin/orders/" + orderId).with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id", org.hamcrest.Matchers.is(orderId)))
+                .andExpect(jsonPath("$.events", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$.events[0].fromStatus", org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.events[0].toStatus", org.hamcrest.Matchers.is("pending")));
+    }
+
+    @Test
+    void returnsNotFoundGettingUnknownOrder() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/orders/00000000-0000-0000-0000-000000000000")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isNotFound());
+    }
+
+    private String placeOrder(String customerName, String whatsapp) throws Exception {
+        String body = """
+                {
+                  "productIds": ["%s"],
+                  "customer": {"name": "%s", "whatsapp": "%s"},
+                  "deliveryMethod": "recoger",
+                  "paymentMethod": "efectivo"
+                }
+                """.formatted(availableProductId(), customerName, whatsapp);
+        String response = mockMvc.perform(post("/api/v1/orders")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return com.jayway.jsonpath.JsonPath.parse(response).read("$.id", String.class);
+    }
 }

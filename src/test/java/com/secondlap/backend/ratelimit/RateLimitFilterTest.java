@@ -68,6 +68,28 @@ class RateLimitFilterTest {
     }
 
     @Test
+    void routesNewAdminOrderEndpointsThroughAdminApiBucket() throws Exception {
+        RateLimitService service = mock(RateLimitService.class);
+        when(service.tryConsumeAdminApi("8.8.8.8")).thenReturn(true);
+        RateLimitFilter filter = new RateLimitFilter(service, mapper);
+
+        String[][] routes = {
+                {"GET", "/api/v1/admin/orders/abc"},
+                {"PATCH", "/api/v1/admin/orders/abc/complete"},
+                {"PATCH", "/api/v1/admin/orders/abc/deliver"}
+        };
+        for (String[] route : routes) {
+            MockHttpServletRequest request = new MockHttpServletRequest(route[0], route[1]);
+            request.setRemoteAddr("8.8.8.8");
+            MockHttpServletResponse response = new MockHttpServletResponse();
+            FilterChain chain = mock(FilterChain.class);
+            filter.doFilter(request, response, chain);
+            verify(chain).doFilter(request, response);
+        }
+        verify(service, never()).tryConsumeAdminLogin(any());
+    }
+
+    @Test
     void throttlesAdminMeByLoginBucketUsingRemoteAddr() throws Exception {
         RateLimitService service = mock(RateLimitService.class);
         when(service.tryConsumeAdminLogin("8.8.8.8")).thenReturn(true);
