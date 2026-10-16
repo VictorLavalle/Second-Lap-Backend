@@ -63,7 +63,7 @@ class CreateOrderIT extends AbstractPostgresIntegrationTest {
 
         mockMvc.perform(post("/api/v1/orders").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.status", org.hamcrest.Matchers.is("pending")))
+                .andExpect(jsonPath("$.status", org.hamcrest.Matchers.is("pendiente")))
                 .andExpect(jsonPath("$.deliveryMethod", org.hamcrest.Matchers.is("recoger")))
                 .andExpect(jsonPath("$.address").doesNotExist())
                 .andExpect(jsonPath("$.shippingFee").value(numericallyEquals(0.0)))

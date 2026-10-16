@@ -405,7 +405,7 @@ components:
       enum: ["transferencia", "efectivo", "tarjeta"]
     OrderStatus:
       type: string
-      enum: ["pending", "confirmed", "completed", "delivered", "cancelled"]
+      enum: ["pendiente", "confirmado", "completado", "entregado", "cancelado"]
 
     CategoryResponse:
       type: object

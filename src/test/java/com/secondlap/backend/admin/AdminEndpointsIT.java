@@ -186,7 +186,7 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
         mockMvc.perform(patch("/api/v1/admin/orders/" + orderId + "/cancel")
                         .with(httpBasic("admin", "admin123")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status", org.hamcrest.Matchers.is("cancelled")));
+                .andExpect(jsonPath("$.status", org.hamcrest.Matchers.is("cancelado")));
 
         assertThat(productRepository.findByPublicId(java.util.UUID.fromString(productId))
                 .orElseThrow().getStatus()).isEqualTo(ProductStatus.DISPONIBLE);
@@ -251,7 +251,7 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
         mockMvc.perform(patch("/api/v1/admin/orders/" + orderId + "/confirm")
                         .with(httpBasic("admin", "admin123")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status", org.hamcrest.Matchers.is("confirmed")));
+                .andExpect(jsonPath("$.status", org.hamcrest.Matchers.is("confirmado")));
 
         assertThat(productRepository.findByPublicId(java.util.UUID.fromString(productId))
                 .orElseThrow().getStatus()).isEqualTo(ProductStatus.VENDIDO);
@@ -384,26 +384,26 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
         mockMvc.perform(patch("/api/v1/admin/orders/" + orderId + "/confirm")
                         .with(httpBasic("admin", "admin123")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status", org.hamcrest.Matchers.is("confirmed")))
+                .andExpect(jsonPath("$.status", org.hamcrest.Matchers.is("confirmado")))
                 .andExpect(jsonPath("$.confirmedAt", org.hamcrest.Matchers.notNullValue()))
                 .andExpect(jsonPath("$.events", org.hamcrest.Matchers.hasSize(2)));
 
         mockMvc.perform(patch("/api/v1/admin/orders/" + orderId + "/complete")
                         .with(httpBasic("admin", "admin123")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status", org.hamcrest.Matchers.is("completed")))
+                .andExpect(jsonPath("$.status", org.hamcrest.Matchers.is("completado")))
                 .andExpect(jsonPath("$.completedAt", org.hamcrest.Matchers.notNullValue()))
                 .andExpect(jsonPath("$.events", org.hamcrest.Matchers.hasSize(3)));
 
         mockMvc.perform(patch("/api/v1/admin/orders/" + orderId + "/deliver")
                         .with(httpBasic("admin", "admin123")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status", org.hamcrest.Matchers.is("delivered")))
+                .andExpect(jsonPath("$.status", org.hamcrest.Matchers.is("entregado")))
                 .andExpect(jsonPath("$.deliveredAt", org.hamcrest.Matchers.notNullValue()))
                 .andExpect(jsonPath("$.events", org.hamcrest.Matchers.hasSize(4)))
-                .andExpect(jsonPath("$.events[0].toStatus", org.hamcrest.Matchers.is("pending")))
+                .andExpect(jsonPath("$.events[0].toStatus", org.hamcrest.Matchers.is("pendiente")))
                 .andExpect(jsonPath("$.events[0].fromStatus", org.hamcrest.Matchers.nullValue()))
-                .andExpect(jsonPath("$.events[3].toStatus", org.hamcrest.Matchers.is("delivered")));
+                .andExpect(jsonPath("$.events[3].toStatus", org.hamcrest.Matchers.is("entregado")));
     }
 
     @Test
@@ -416,7 +416,7 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
                 .andExpect(jsonPath("$.code", org.hamcrest.Matchers.is("INVALID_ORDER_TRANSITION")));
 
         mockMvc.perform(get("/api/v1/admin/orders/" + orderId).with(httpBasic("admin", "admin123")))
-                .andExpect(jsonPath("$.status", org.hamcrest.Matchers.is("pending")))
+                .andExpect(jsonPath("$.status", org.hamcrest.Matchers.is("pendiente")))
                 .andExpect(jsonPath("$.completedAt", org.hamcrest.Matchers.nullValue()));
     }
 
@@ -443,7 +443,7 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
                 .andExpect(jsonPath("$.id", org.hamcrest.Matchers.is(orderId)))
                 .andExpect(jsonPath("$.events", org.hamcrest.Matchers.hasSize(1)))
                 .andExpect(jsonPath("$.events[0].fromStatus", org.hamcrest.Matchers.nullValue()))
-                .andExpect(jsonPath("$.events[0].toStatus", org.hamcrest.Matchers.is("pending")));
+                .andExpect(jsonPath("$.events[0].toStatus", org.hamcrest.Matchers.is("pendiente")));
     }
 
     @Test

@@ -15,11 +15,11 @@ class GlobalExceptionHandlerTest {
     void mapsInvalidOrderTransitionTo409() {
         ResponseEntity<ApiError> response =
                 handler.handleInvalidOrderTransition(
-                        new InvalidOrderTransitionException("No se puede cancelar un pedido en estado confirmed"));
+                        new InvalidOrderTransitionException("No se puede cancelar un pedido en estado confirmado"));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(response.getBody().code()).isEqualTo("INVALID_ORDER_TRANSITION");
-        assertThat(response.getBody().message()).contains("confirmed");
+        assertThat(response.getBody().message()).contains("confirmado");
     }
 
     @Test

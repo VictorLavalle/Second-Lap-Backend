@@ -18,7 +18,7 @@ class DomainEnumsTest {
         assertThat(ProductStatus.fromValue("apartado")).isEqualTo(ProductStatus.APARTADO);
         assertThat(DeliveryMethod.fromValue("domicilio")).isEqualTo(DeliveryMethod.DOMICILIO);
         assertThat(PaymentMethod.fromValue("transferencia")).isEqualTo(PaymentMethod.TRANSFERENCIA);
-        assertThat(OrderStatus.fromValue("confirmed")).isEqualTo(OrderStatus.CONFIRMED);
+        assertThat(OrderStatus.fromValue("confirmado")).isEqualTo(OrderStatus.CONFIRMED);
     }
 
     @Test
