@@ -146,4 +146,11 @@ class CatalogReadEndpointsIT extends AbstractPostgresIntegrationTest {
                 .andExpect(jsonPath("$.id", is(oneId)))
                 .andExpect(jsonPath("$.categoryId", is(playerasCategoryId)));
     }
+
+    @Test
+    void returnsBadRequestForMalformedProductId() throws Exception {
+        mockMvc.perform(get("/api/v1/products/{id}", "not-a-uuid"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("INVALID_PARAMETER")));
+    }
 }

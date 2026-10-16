@@ -23,6 +23,20 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void mapsTypeMismatchTo400InvalidParameter() {
+        var ex = new org.springframework.web.method.annotation.MethodArgumentTypeMismatchException(
+                "not-a-uuid", java.util.UUID.class, "id", null, new IllegalArgumentException("bad uuid"));
+
+        ResponseEntity<ApiError> response = handler.handleTypeMismatch(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().code()).isEqualTo("INVALID_PARAMETER");
+        assertThat(response.getBody().message()).contains("id");
+        // raw value must not be reflected back
+        assertThat(response.getBody().message()).doesNotContain("not-a-uuid");
+    }
+
+    @Test
     void mapsRateLimitTo429WithRetryAfter() {
         ResponseEntity<ApiError> response =
                 handler.handleRateLimit(new RateLimitExceededException("slow down"));
