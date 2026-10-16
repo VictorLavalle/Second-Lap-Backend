@@ -30,6 +30,16 @@ public class AdminOrderController {
         return adminOrderService.confirm(id);
     }
 
+    @PatchMapping("/{id}/complete")
+    public OrderResponse complete(@PathVariable UUID id) {
+        return adminOrderService.complete(id);
+    }
+
+    @PatchMapping("/{id}/deliver")
+    public OrderResponse deliver(@PathVariable UUID id) {
+        return adminOrderService.deliver(id);
+    }
+
     @PatchMapping("/{id}/cancel")
     public OrderResponse cancel(@PathVariable UUID id) {
         return adminOrderService.cancel(id);
