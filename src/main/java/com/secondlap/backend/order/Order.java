@@ -65,12 +65,28 @@ public class Order {
     @Column(name = "status", nullable = false)
     private OrderStatus status;
 
+    @Column(name = "confirmed_at")
+    private OffsetDateTime confirmedAt;
+
+    @Column(name = "completed_at")
+    private OffsetDateTime completedAt;
+
+    @Column(name = "delivered_at")
+    private OffsetDateTime deliveredAt;
+
+    @Column(name = "cancelled_at")
+    private OffsetDateTime cancelledAt;
+
     @Generated(event = EventType.INSERT)
     @Column(name = "created_at", nullable = false, updatable = false, insertable = false)
     private OffsetDateTime createdAt;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
+
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @org.hibernate.annotations.OrderBy(clause = "occurred_at ASC")
+    private List<OrderEvent> events = new ArrayList<>();
 
     protected Order() {
     }
@@ -86,6 +102,10 @@ public class Order {
 
     public void addItem(OrderItem item) {
         items.add(item);
+    }
+
+    public void recordEvent(OrderStatus from, OrderStatus to) {
+        events.add(new OrderEvent(this, from, to));
     }
 
     public void applyTotals(BigDecimal subtotal, BigDecimal shippingFee, BigDecimal total) {
@@ -136,6 +156,42 @@ public class Order {
 
     public OrderStatus getStatus() {
         return status;
+    }
+
+    public OffsetDateTime getConfirmedAt() {
+        return confirmedAt;
+    }
+
+    public void setConfirmedAt(OffsetDateTime confirmedAt) {
+        this.confirmedAt = confirmedAt;
+    }
+
+    public OffsetDateTime getCompletedAt() {
+        return completedAt;
+    }
+
+    public void setCompletedAt(OffsetDateTime completedAt) {
+        this.completedAt = completedAt;
+    }
+
+    public OffsetDateTime getDeliveredAt() {
+        return deliveredAt;
+    }
+
+    public void setDeliveredAt(OffsetDateTime deliveredAt) {
+        this.deliveredAt = deliveredAt;
+    }
+
+    public OffsetDateTime getCancelledAt() {
+        return cancelledAt;
+    }
+
+    public void setCancelledAt(OffsetDateTime cancelledAt) {
+        this.cancelledAt = cancelledAt;
+    }
+
+    public List<OrderEvent> getEvents() {
+        return events;
     }
 
     public OffsetDateTime getCreatedAt() {
