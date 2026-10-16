@@ -55,7 +55,20 @@ public class OrderService {
         this.rateLimitService = rateLimitService;
     }
 
-    @Transactional
+    /**
+     * Reserve all requested items and create the order in a single transaction.
+     *
+     * <p>Concurrency guarantee: a unique piece can never be reserved by two
+     * clients at once. This is enforced by the atomic conditional UPDATE
+     * ({@code SET status='apartado' WHERE id=? AND status='disponible'}) plus
+     * PostgreSQL's row lock — NOT by application code. Under READ COMMITTED, a
+     * concurrent reservation blocks on the locked row and re-evaluates the WHERE
+     * predicate after the winner commits, so it matches zero rows and loses with
+     * a 409. READ COMMITTED (PostgreSQL's default) is sufficient precisely because
+     * of this re-check-after-lock behavior; it is pinned explicitly here so the
+     * guarantee does not silently depend on the environment default.
+     */
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public OrderResponse createOrder(CreateOrderRequest request) {
         DeliveryMethod deliveryMethod = DeliveryMethod.fromValue(request.deliveryMethod());
         PaymentMethod paymentMethod = PaymentMethod.fromValue(request.paymentMethod());

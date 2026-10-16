@@ -15,7 +15,11 @@ public abstract class AbstractPostgresIntegrationTest {
     // JUnit @Container lifecycle on a static field in a base class stops the
     // container when the first class finishes, breaking the rest; a manually
     // started singleton stays up for the whole suite and is reaped by Ryuk.
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17");
+    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17")
+            // Several @SpringBootTest contexts (different @TestPropertySource) each
+            // open their own pool; raise the server limit so they coexist and the
+            // concurrency IT has head-room for REQUIRES_NEW sub-transactions.
+            .withCommand("postgres", "-c", "max_connections=300");
 
     static {
         POSTGRES.start();
@@ -37,6 +41,11 @@ public abstract class AbstractPostgresIntegrationTest {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
+        // Concurrency ITs run dozens of threads that each may need a second
+        // connection for the REQUIRES_NEW customer insert; size the pool above
+        // the thread count so the test exercises row-lock contention, not pool
+        // starvation.
+        registry.add("spring.datasource.hikari.maximum-pool-size", () -> "30");
         registry.add("spring.flyway.clean-disabled", () -> "false");
         registry.add("secondlap.cors.allowed-origins", () -> "http://localhost:3000");
         registry.add("secondlap.admin.username", () -> "admin");
