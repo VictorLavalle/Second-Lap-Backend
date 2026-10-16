@@ -229,6 +229,10 @@ paths:
     post:
       tags: [Admin Products]
       summary: Upload one or more product images (multipart)
+      description: >
+        Images are optimized on save: downscaled to a 1600px long side (aspect
+        ratio preserved) and recompressed. JPEG and opaque PNG are stored as
+        JPEG; transparent PNG stays PNG; WebP is stored unchanged.
       security: [{ basicAuth: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }

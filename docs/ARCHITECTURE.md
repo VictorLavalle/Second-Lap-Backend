@@ -281,7 +281,13 @@ PostgreSQL via Testcontainers.
 - **HTTPS-only in prod**: the `prod` profile redirects HTTP→HTTPS; dev stays HTTP.
 - **File upload**: validates content-type and size, unique UUID filename, guarded
   against path traversal; stored on local disk behind the `StorageService`
-  abstraction (no cloud, by environment policy).
+  abstraction (no cloud, by environment policy). Images are optimized on save:
+  downscaled to a 1600px long side (aspect ratio preserved, never upscaled) and
+  recompressed with the JVM's ImageIO — JPEG and opaque PNG are written as JPEG
+  at 0.80 quality, transparent PNG stays PNG, and WebP is passed through
+  unchanged (ImageIO cannot encode it; native libraries are excluded by policy).
+  The incoming-file size/type validation runs before processing; a corrupt image
+  is rejected as 400, not 500.
 - **No leaking errors**: the global handler never returns stack traces (see §11).
 
 > Volumetric DDoS is out of scope for the app and must be absorbed upstream by a
