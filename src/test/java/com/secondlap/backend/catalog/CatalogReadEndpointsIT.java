@@ -161,4 +161,26 @@ class CatalogReadEndpointsIT extends AbstractPostgresIntegrationTest {
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
                         .header().exists("X-Request-Id"));
     }
+
+    @Test
+    void sortsByWhitelistedDateFieldsAndFallsBackOnInvalid() throws Exception {
+        // seeded products expose createdAt; sorting by it must succeed
+        mockMvc.perform(get("/api/v1/products").param("sort", "createdAt,desc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(8)))
+                .andExpect(jsonPath("$[0].createdAt", org.hamcrest.Matchers.notNullValue()));
+
+        mockMvc.perform(get("/api/v1/products").param("sort", "modifiedDate,asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(8)));
+
+        // a non-whitelisted sort property must fall back to the default, never 500
+        mockMvc.perform(get("/api/v1/products").param("sort", "name,asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(8)));
+
+        mockMvc.perform(get("/api/v1/products").param("sort", "'; DROP TABLE product; --,asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(8)));
+    }
 }

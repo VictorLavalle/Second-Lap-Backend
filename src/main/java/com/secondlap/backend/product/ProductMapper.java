@@ -25,6 +25,8 @@ public class ProductMapper {
                 product.getBrand(),
                 product.getColor(),
                 product.getMeasurements(),
-                product.getStatus().getValue());
+                product.getStatus().getValue(),
+                product.getCreatedAt(),
+                product.getModifiedDate());
     }
 }

@@ -8,6 +8,7 @@ import com.secondlap.backend.order.dto.OrderResponse;
 import com.secondlap.backend.product.ProductRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,11 +40,37 @@ public class AdminOrderService {
         this.currentAdminProvider = currentAdminProvider;
     }
 
+    private static final java.util.Set<String> SORTABLE =
+            java.util.Set.of("createdAt", "total", "status");
+    private static final Sort DEFAULT_SORT = Sort.by(Sort.Direction.DESC, "createdAt");
+
     @Transactional(readOnly = true)
-    public List<OrderResponse> findAll() {
-        return orderRepository.findAllByOrderByCreatedAtDesc().stream()
+    public List<OrderResponse> findAll(String status, String sort) {
+        OrderStatus statusFilter = status != null && !status.isBlank()
+                ? OrderStatus.fromValue(status)
+                : null;
+        org.springframework.data.jpa.domain.Specification<Order> spec =
+                (root, query, cb) -> statusFilter == null
+                        ? cb.conjunction()
+                        : cb.equal(root.get("status"), statusFilter);
+        return orderRepository.findAll(spec, parseSort(sort)).stream()
                 .map(order -> orderMapper.toResponse(order, storeProperties.whatsapp()))
                 .toList();
+    }
+
+    private Sort parseSort(String sort) {
+        if (sort == null || sort.isBlank()) {
+            return DEFAULT_SORT;
+        }
+        String[] parts = sort.split(",", 2);
+        String property = parts[0].trim();
+        if (!SORTABLE.contains(property)) {
+            return DEFAULT_SORT;
+        }
+        Sort.Direction direction = parts.length > 1 && "asc".equalsIgnoreCase(parts[1].trim())
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+        return Sort.by(direction, property);
     }
 
     @Transactional(readOnly = true)

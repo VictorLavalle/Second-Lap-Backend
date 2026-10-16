@@ -264,6 +264,9 @@ paths:
       tags: [Admin Orders]
       summary: List all orders
       security: [{ basicAuth: [] }]
+      parameters:
+        - { name: status, in: query, required: false, schema: { $ref: '#/components/schemas/OrderStatus' }, description: Filter by order status }
+        - { name: sort, in: query, required: false, schema: { type: string }, description: "propiedad,asc|desc — whitelist: createdAt, total, status (default createdAt,desc)" }
       responses:
         '200':
           description: Orders
@@ -443,6 +446,8 @@ components:
         color: { type: [string, "null"] }
         measurements: { type: [string, "null"] }
         status: { $ref: '#/components/schemas/ProductStatus' }
+        createdAt: { type: string, format: date-time }
+        modifiedDate: { type: [string, "null"], format: date-time }
 
     AdminProductRequest:
       type: object

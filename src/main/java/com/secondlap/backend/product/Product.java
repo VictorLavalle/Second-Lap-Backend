@@ -65,6 +65,14 @@ public class Product {
     @Column(name = "status", nullable = false)
     private ProductStatus status;
 
+    @org.hibernate.annotations.Generated(event = org.hibernate.generator.EventType.INSERT)
+    @Column(name = "created_at", nullable = false, updatable = false, insertable = false)
+    private java.time.OffsetDateTime createdAt;
+
+    @org.hibernate.annotations.UpdateTimestamp
+    @Column(name = "modified_date")
+    private java.time.OffsetDateTime modifiedDate;
+
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position ASC")
     private List<ProductImage> images = new ArrayList<>();
@@ -154,6 +162,14 @@ public class Product {
 
     public ProductStatus getStatus() {
         return status;
+    }
+
+    public java.time.OffsetDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public java.time.OffsetDateTime getModifiedDate() {
+        return modifiedDate;
     }
 
     public List<ProductImage> getImages() {
