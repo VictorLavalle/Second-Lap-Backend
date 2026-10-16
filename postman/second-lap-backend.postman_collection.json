@@ -301,7 +301,23 @@
             "method": "GET",
             "header": [],
             "url": { "raw": "{{apiBase}}/admin/orders", "host": ["{{apiBase}}"], "path": ["admin", "orders"] }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const list = pm.response.json();",
+                  "pm.test('ordenadas por fecha descendente', () => {",
+                  "  const dates = list.map(o => new Date(o.createdAt).getTime());",
+                  "  const sorted = [...dates].sort((a, b) => b - a);",
+                  "  pm.expect(dates).to.eql(sorted);",
+                  "});"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "PATCH confirmar orden",
@@ -318,6 +334,27 @@
             "header": [],
             "url": { "raw": "{{apiBase}}/admin/orders/{{orderId}}/cancel", "host": ["{{apiBase}}"], "path": ["admin", "orders", "{{orderId}}", "cancel"] }
           }
+        },
+        {
+          "name": "PATCH cancelar orden ya cancelada (espera 409)",
+          "description": "Reutiliza {{orderId}} ya cancelada; solo PENDING puede transicionar, así que debe devolver 409.",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": { "raw": "{{apiBase}}/admin/orders/{{orderId}}/cancel", "host": ["{{apiBase}}"], "path": ["admin", "orders", "{{orderId}}", "cancel"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('409 Conflict en transición inválida', () => pm.response.to.have.status(409));",
+                  "const b = pm.response.json();",
+                  "pm.test('código INVALID_ORDER_TRANSITION', () => pm.expect(b.code).to.eql('INVALID_ORDER_TRANSITION'));"
+                ]
+              }
+            }
+          ]
         }
       ]
     }
