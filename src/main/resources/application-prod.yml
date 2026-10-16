@@ -1,3 +1,7 @@
 secondlap:
   security:
     require-https: true
+
+logging:
+  level:
+    com.secondlap.backend.common.AccessLogFilter: info
