@@ -38,6 +38,11 @@ public class AdminOrderService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public OrderResponse findByPublicId(UUID publicId) {
+        return orderMapper.toResponse(getByPublicId(publicId), storeProperties.whatsapp());
+    }
+
     public OrderResponse confirm(UUID publicId) {
         Order order = getByPublicId(publicId);
         requireStatus(order, OrderStatus.PENDING, "confirmar");
