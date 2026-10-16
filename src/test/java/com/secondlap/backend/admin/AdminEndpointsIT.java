@@ -320,22 +320,36 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void listsOrdersForAdmin() throws Exception {
-        String orderBody = """
+    void listsOrdersForAdminMostRecentFirst() throws Exception {
+        String firstProduct = availableProductId();
+        String firstBody = """
                 {
                   "productIds": ["%s"],
-                  "customer": {"name": "Listado", "whatsapp": "9990001234"},
+                  "customer": {"name": "Primero", "whatsapp": "9990001234"},
                   "deliveryMethod": "recoger",
                   "paymentMethod": "efectivo"
                 }
-                """.formatted(availableProductId());
+                """.formatted(firstProduct);
         mockMvc.perform(post("/api/v1/orders")
-                .contentType(MediaType.APPLICATION_JSON).content(orderBody)).andExpect(status().isCreated());
+                .contentType(MediaType.APPLICATION_JSON).content(firstBody)).andExpect(status().isCreated());
+
+        String secondProduct = availableProductId();
+        String secondBody = """
+                {
+                  "productIds": ["%s"],
+                  "customer": {"name": "Segundo", "whatsapp": "9990005678"},
+                  "deliveryMethod": "recoger",
+                  "paymentMethod": "efectivo"
+                }
+                """.formatted(secondProduct);
+        mockMvc.perform(post("/api/v1/orders")
+                .contentType(MediaType.APPLICATION_JSON).content(secondBody)).andExpect(status().isCreated());
 
         mockMvc.perform(get("/api/v1/admin/orders").with(httpBasic("admin", "admin123")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
-                .andExpect(jsonPath("$[0].customer.whatsapp", org.hamcrest.Matchers.is("9990001234")));
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(2)))
+                .andExpect(jsonPath("$[0].customer.whatsapp", org.hamcrest.Matchers.is("9990005678")))
+                .andExpect(jsonPath("$[1].customer.whatsapp", org.hamcrest.Matchers.is("9990001234")));
     }
 
     @Test

@@ -33,7 +33,7 @@ public class AdminOrderService {
 
     @Transactional(readOnly = true)
     public List<OrderResponse> findAll() {
-        return orderRepository.findAll().stream()
+        return orderRepository.findAllByOrderByCreatedAtDesc().stream()
                 .map(order -> orderMapper.toResponse(order, storeProperties.whatsapp()))
                 .toList();
     }
