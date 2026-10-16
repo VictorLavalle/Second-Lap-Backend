@@ -5,6 +5,11 @@ unique piece (quantity = 1). It exposes a versioned REST API under `/api/v1`
 that replaces the frontend's (Next.js) data boundary, so the responses match the
 types the UI consumes.
 
+> For how the backend works internally (structure, request flow, order lifecycle,
+> security, observability and design decisions), see
+> [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). The HTTP contract lives in
+> [docs/openapi.yaml](docs/openapi.yaml).
+
 ## Stack
 
 - Java 25 (LTS) + Spring Boot 3.5.x
