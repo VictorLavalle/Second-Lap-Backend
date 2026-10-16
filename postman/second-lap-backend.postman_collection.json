@@ -44,7 +44,9 @@
               "script": {
                 "exec": [
                   "pm.test('200 OK', () => pm.response.to.have.status(200));",
-                  "const list = pm.response.json();",
+                  "const body = pm.response.json();",
+                  "pm.test('respuesta paginada', () => pm.expect(body).to.have.property('content'));",
+                  "const list = body.content;",
                   "if (Array.isArray(list) && list.length) {",
                   "  const available = list.filter(p => p.status === 'disponible');",
                   "  const first = available[0] || list[0];",
