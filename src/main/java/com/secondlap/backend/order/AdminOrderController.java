@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -22,10 +21,12 @@ public class AdminOrderController {
     }
 
     @GetMapping
-    public List<OrderResponse> getOrders(
+    public com.secondlap.backend.common.PageResponse<OrderResponse> getOrders(
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) String sort) {
-        return adminOrderService.findAll(status, sort);
+            @RequestParam(required = false) String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+        return adminOrderService.findAll(status, sort, page, size);
     }
 
     @GetMapping("/{id}")
