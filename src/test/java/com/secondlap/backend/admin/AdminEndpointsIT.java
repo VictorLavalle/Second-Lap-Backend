@@ -475,6 +475,47 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
                 .andExpect(jsonPath("$.code", org.hamcrest.Matchers.is("INVALID_PARAMETER")));
     }
 
+    @Test
+    void filtersAndSortsAdminOrders() throws Exception {
+        String a = placeOrder("Filtro A", "9990004040");
+        String b = placeOrder("Filtro B", "9990005050");
+
+        // cancel A so the two orders have different statuses
+        mockMvc.perform(patch("/api/v1/admin/orders/" + a + "/cancel")
+                .with(httpBasic("admin", "admin123"))).andExpect(status().isOk());
+
+        // filter by status=cancelado returns only A
+        mockMvc.perform(get("/api/v1/admin/orders").param("status", "cancelado")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$[0].id", org.hamcrest.Matchers.is(a)))
+                .andExpect(jsonPath("$[0].status", org.hamcrest.Matchers.is("cancelado")));
+
+        // filter by status=pendiente returns only B
+        mockMvc.perform(get("/api/v1/admin/orders").param("status", "pendiente")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$[0].id", org.hamcrest.Matchers.is(b)));
+
+        // default (no params): newest first, both orders present
+        mockMvc.perform(get("/api/v1/admin/orders").with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(2)))
+                .andExpect(jsonPath("$[0].id", org.hamcrest.Matchers.is(b)));
+
+        // sort=total,asc must succeed; an invalid sort falls back without 500
+        mockMvc.perform(get("/api/v1/admin/orders").param("sort", "total,asc")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(2)));
+        mockMvc.perform(get("/api/v1/admin/orders").param("sort", "whatever,asc")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(2)));
+    }
+
     private String placeOrder(String customerName, String whatsapp) throws Exception {
         String body = """
                 {
