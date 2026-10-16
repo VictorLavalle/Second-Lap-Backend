@@ -37,9 +37,9 @@ class EnumConvertersTest {
     @Test
     void orderStatusConverterRoundTrips() {
         OrderStatusConverter c = new OrderStatusConverter();
-        assertThat(c.convertToDatabaseColumn(OrderStatus.CONFIRMED)).isEqualTo("confirmed");
+        assertThat(c.convertToDatabaseColumn(OrderStatus.CONFIRMED)).isEqualTo("confirmado");
         assertThat(c.convertToDatabaseColumn(null)).isNull();
-        assertThat(c.convertToEntityAttribute("cancelled")).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(c.convertToEntityAttribute("cancelado")).isEqualTo(OrderStatus.CANCELLED);
         assertThat(c.convertToEntityAttribute(null)).isNull();
     }
 
