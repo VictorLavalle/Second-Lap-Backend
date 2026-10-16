@@ -1,6 +1,7 @@
 package com.secondlap.backend.order;
 
 import com.secondlap.backend.common.ResourceNotFoundException;
+import com.secondlap.backend.common.InvalidOrderTransitionException;
 import com.secondlap.backend.config.StoreProperties;
 import com.secondlap.backend.order.dto.OrderResponse;
 import com.secondlap.backend.product.Product;
@@ -39,6 +40,7 @@ public class AdminOrderService {
 
     public OrderResponse confirm(UUID publicId) {
         Order order = getByPublicId(publicId);
+        requirePending(order, "confirmar");
         order.setStatus(OrderStatus.CONFIRMED);
         for (OrderItem item : order.getItems()) {
             Product product = item.getProduct();
@@ -54,11 +56,19 @@ public class AdminOrderService {
      */
     public OrderResponse cancel(UUID publicId) {
         Order order = getByPublicId(publicId);
+        requirePending(order, "cancelar");
         order.setStatus(OrderStatus.CANCELLED);
         for (OrderItem item : order.getItems()) {
             productRepository.releaseToAvailable(item.getProduct().getId());
         }
         return orderMapper.toResponse(order, storeProperties.whatsapp());
+    }
+
+    private void requirePending(Order order, String action) {
+        if (order.getStatus() != OrderStatus.PENDING) {
+            throw new InvalidOrderTransitionException(
+                    "No se puede " + action + " un pedido en estado " + order.getStatus().getValue());
+        }
     }
 
     private Order getByPublicId(UUID publicId) {

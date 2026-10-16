@@ -258,6 +258,68 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void rejectsCancellingAConfirmedOrderWithoutResurrectingProducts() throws Exception {
+        String productId = availableProductId();
+        String orderBody = """
+                {
+                  "productIds": ["%s"],
+                  "customer": {"name": "NoCancelar", "whatsapp": "9990002222"},
+                  "deliveryMethod": "recoger",
+                  "paymentMethod": "efectivo"
+                }
+                """.formatted(productId);
+        String orderResponse = mockMvc.perform(post("/api/v1/orders")
+                        .contentType(MediaType.APPLICATION_JSON).content(orderBody))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String orderId = com.jayway.jsonpath.JsonPath.parse(orderResponse).read("$.id", String.class);
+
+        mockMvc.perform(patch("/api/v1/admin/orders/" + orderId + "/confirm")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/v1/admin/orders/" + orderId + "/cancel")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code", org.hamcrest.Matchers.is("INVALID_ORDER_TRANSITION")));
+
+        // the confirmed order's product stays sold; cancel must not resurrect it
+        assertThat(productRepository.findByPublicId(java.util.UUID.fromString(productId))
+                .orElseThrow().getStatus()).isEqualTo(ProductStatus.VENDIDO);
+    }
+
+    @Test
+    void rejectsConfirmingAnAlreadyCancelledOrder() throws Exception {
+        String productId = availableProductId();
+        String orderBody = """
+                {
+                  "productIds": ["%s"],
+                  "customer": {"name": "NoConfirmar", "whatsapp": "9990003333"},
+                  "deliveryMethod": "recoger",
+                  "paymentMethod": "efectivo"
+                }
+                """.formatted(productId);
+        String orderResponse = mockMvc.perform(post("/api/v1/orders")
+                        .contentType(MediaType.APPLICATION_JSON).content(orderBody))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String orderId = com.jayway.jsonpath.JsonPath.parse(orderResponse).read("$.id", String.class);
+
+        mockMvc.perform(patch("/api/v1/admin/orders/" + orderId + "/cancel")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/v1/admin/orders/" + orderId + "/confirm")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code", org.hamcrest.Matchers.is("INVALID_ORDER_TRANSITION")));
+
+        // the cancelled order released its product; confirm must not sell it
+        assertThat(productRepository.findByPublicId(java.util.UUID.fromString(productId))
+                .orElseThrow().getStatus()).isEqualTo(ProductStatus.DISPONIBLE);
+    }
+
+    @Test
     void listsOrdersForAdmin() throws Exception {
         String orderBody = """
                 {

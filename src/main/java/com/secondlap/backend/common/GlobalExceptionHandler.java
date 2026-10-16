@@ -25,6 +25,12 @@ public class GlobalExceptionHandler {
                         Map.of("productId", ex.getProductId())));
     }
 
+    @ExceptionHandler(InvalidOrderTransitionException.class)
+    public ResponseEntity<ApiError> handleInvalidOrderTransition(InvalidOrderTransitionException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.of("INVALID_ORDER_TRANSITION", ex.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex) {
         Map<String, Object> fieldErrors = new HashMap<>();

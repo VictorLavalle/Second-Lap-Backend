@@ -285,6 +285,11 @@ paths:
               schema: { $ref: '#/components/schemas/OrderResponse' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The order is not PENDING, so it cannot be confirmed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
 
   /admin/orders/{id}/cancel:
     patch:
@@ -301,6 +306,11 @@ paths:
               schema: { $ref: '#/components/schemas/OrderResponse' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The order is not PENDING, so it cannot be cancelled
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
 
 components:
   securitySchemes:
