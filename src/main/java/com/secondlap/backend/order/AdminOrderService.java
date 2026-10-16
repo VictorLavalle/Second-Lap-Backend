@@ -86,7 +86,8 @@ public class AdminOrderService {
         for (OrderItem item : order.getItems()) {
             item.getProduct().setStatus(com.secondlap.backend.product.ProductStatus.VENDIDO);
         }
-        log.info("admin '{}' confirmó el pedido {}", actor, publicId);
+        log.info("admin '{}' confirmó el pedido {}: {} producto(s) marcados como vendido",
+                actor, publicId, order.getItems().size());
         return orderMapper.toResponse(order, storeProperties.whatsapp());
     }
 
@@ -118,10 +119,12 @@ public class AdminOrderService {
         requireStatus(order, OrderStatus.PENDING, "cancelar");
         String actor = transitionTo(order, OrderStatus.CANCELLED);
         order.setCancelledAt(OffsetDateTime.now(java.time.ZoneOffset.UTC));
+        int released = 0;
         for (OrderItem item : order.getItems()) {
-            productRepository.releaseToAvailable(item.getProduct().getId());
+            released += productRepository.releaseToAvailable(item.getProduct().getId());
         }
-        log.info("admin '{}' canceló el pedido {}", actor, publicId);
+        log.info("admin '{}' canceló el pedido {}: {} producto(s) liberados a disponible",
+                actor, publicId, released);
         return orderMapper.toResponse(order, storeProperties.whatsapp());
     }
 
