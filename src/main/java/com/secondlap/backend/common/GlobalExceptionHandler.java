@@ -92,6 +92,16 @@ public class GlobalExceptionHandler {
                 .body(ApiError.of("PAYLOAD_TOO_LARGE", "El archivo o la solicitud excede el tamaño permitido"));
     }
 
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiError> handleUnreadableBody(
+            org.springframework.http.converter.HttpMessageNotReadableException ex) {
+        // Generic message only: the Jackson detail may contain Java types or the
+        // raw input value, which must not be reflected back to the client.
+        log.debug("Malformed request body");
+        return ResponseEntity.badRequest()
+                .body(ApiError.of("MALFORMED_REQUEST", "La solicitud no es válida o está mal formada."));
+    }
+
     // Catch-all: log the full stack trace server-side under a correlation id and
     // hand that id back to the client so the 500 they saw can be traced in the
     // logs — without ever leaking the stack trace itself.

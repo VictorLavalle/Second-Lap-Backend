@@ -258,6 +258,24 @@ class CreateOrderIT extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void rejectsOrderWithNonUuidProductId() throws Exception {
+        // a non-UUID productId (e.g. a stale cart id) makes Jackson fail to parse
+        // the body: it must be a 400 MALFORMED_REQUEST, not a 500
+        String body = """
+                {
+                  "productIds": ["ply-002"],
+                  "customer": {"name": "Jon", "whatsapp": "9990001122"},
+                  "deliveryMethod": "recoger",
+                  "paymentMethod": "efectivo"
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/orders").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", org.hamcrest.Matchers.is("MALFORMED_REQUEST")));
+    }
+
+    @Test
     void homeDeliveryWithUnknownNeighborhoodHasNoShippingFee() throws Exception {
         String productId = availableProductId();
         double price = productRepository.findByPublicId(java.util.UUID.fromString(productId))
