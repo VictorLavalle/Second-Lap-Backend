@@ -50,12 +50,26 @@ public abstract class AbstractPostgresIntegrationTest {
         registry.add("secondlap.cors.allowed-origins", () -> "http://localhost:3000");
         registry.add("secondlap.admin.username", () -> "admin");
         registry.add("secondlap.admin.password", () -> "admin123");
+        registry.add("secondlap.store.whatsapp", () -> "529996384026");
+        registry.add("secondlap.order.max-items", () -> "20");
+        registry.add("secondlap.storage.local.base-path", () -> "./uploads");
+        registry.add("secondlap.storage.local.public-url-prefix", () -> "/uploads");
+        registry.add("secondlap.storage.local.max-file-size-bytes", () -> "5242880");
         // High rate-limit ceilings by default so unrelated ITs sharing the
         // per-instance buckets never trip the limiter; SecurityHardeningIT
         // overrides these with low values in its own context.
         registry.add("secondlap.ratelimit.public-reads.capacity", () -> "100000");
+        registry.add("secondlap.ratelimit.public-reads.window-seconds", () -> "60");
         registry.add("secondlap.ratelimit.orders.capacity", () -> "100000");
+        registry.add("secondlap.ratelimit.orders.window-seconds", () -> "60");
         registry.add("secondlap.ratelimit.orders-per-whatsapp.capacity", () -> "100000");
+        registry.add("secondlap.ratelimit.orders-per-whatsapp.window-seconds", () -> "60");
         registry.add("secondlap.ratelimit.admin-login.capacity", () -> "100000");
+        registry.add("secondlap.ratelimit.admin-login.window-seconds", () -> "60");
+        registry.add("server.port", () -> "0");
+        registry.add("spring.servlet.multipart.max-file-size", () -> "5MB");
+        registry.add("spring.servlet.multipart.max-request-size", () -> "15MB");
+        registry.add("server.tomcat.max-http-form-post-size", () -> "2MB");
+        registry.add("server.tomcat.max-swallow-size", () -> "2MB");
     }
 }

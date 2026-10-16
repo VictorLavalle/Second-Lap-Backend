@@ -1,0 +1,305 @@
+{
+  "info": {
+    "name": "Second Lap Backend",
+    "description": "API de la tienda Second Lap. Environment: 'Second Lap Backend — Local'. Flujo sugerido: Catálogo (captura IDs) → Pedidos → Admin.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [],
+  "item": [
+    {
+      "name": "Catálogo (público)",
+      "item": [
+        {
+          "name": "GET categorías",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{apiBase}}/categories", "host": ["{{apiBase}}"], "path": ["categories"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "if (Array.isArray(body) && body.length) {",
+                  "  pm.environment.set('categoryId', body[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET productos (todos)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{apiBase}}/products", "host": ["{{apiBase}}"], "path": ["products"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const list = pm.response.json();",
+                  "if (Array.isArray(list) && list.length) {",
+                  "  const available = list.filter(p => p.status === 'disponible');",
+                  "  const first = available[0] || list[0];",
+                  "  pm.environment.set('productId', first.id);",
+                  "  if (available[1]) pm.environment.set('productId2', available[1].id);",
+                  "  pm.test('precio es número (sin comillas)', () => pm.expect(typeof first.price).to.eql('number'));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET productos (filtros)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBase}}/products?category={{categoryId}}&status=disponible&maxPrice=500&sort=price,asc",
+              "host": ["{{apiBase}}"],
+              "path": ["products"],
+              "query": [
+                { "key": "category", "value": "{{categoryId}}" },
+                { "key": "size", "value": "M", "disabled": true },
+                { "key": "condition", "value": "Excelente", "disabled": true },
+                { "key": "status", "value": "disponible" },
+                { "key": "maxPrice", "value": "500" },
+                { "key": "sort", "value": "price,asc" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET producto por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{apiBase}}/products/{{productId}}", "host": ["{{apiBase}}"], "path": ["products", "{{productId}}"] }
+          }
+        },
+        {
+          "name": "GET similares",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{apiBase}}/products/{{productId}}/similar", "host": ["{{apiBase}}"], "path": ["products", "{{productId}}", "similar"] }
+          }
+        },
+        {
+          "name": "GET colonias",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{apiBase}}/neighborhoods", "host": ["{{apiBase}}"], "path": ["neighborhoods"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const list = pm.response.json();",
+                  "if (Array.isArray(list) && list.length) {",
+                  "  pm.environment.set('neighborhoodName', list[0].name);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Pedidos (apartado)",
+      "item": [
+        {
+          "name": "POST crear pedido — recoger / efectivo",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productIds\": [\"{{productId}}\"],\n  \"deliveryMethod\": \"recoger\",\n  \"paymentMethod\": \"efectivo\",\n  \"customer\": {\n    \"name\": \"Ana Prueba\",\n    \"whatsapp\": \"9991234567\",\n    \"comments\": \"Pedido de prueba\"\n  }\n}"
+            },
+            "url": { "raw": "{{apiBase}}/orders", "host": ["{{apiBase}}"], "path": ["orders"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "if (b.id) pm.environment.set('orderId', b.id);",
+                  "pm.test('devuelve storeWhatsapp', () => pm.expect(b.storeWhatsapp).to.be.a('string'));",
+                  "pm.test('total = subtotal + shippingFee', () => pm.expect(b.total).to.eql(b.subtotal + b.shippingFee));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST crear pedido — domicilio / transferencia",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productIds\": [\"{{productId2}}\"],\n  \"deliveryMethod\": \"domicilio\",\n  \"paymentMethod\": \"transferencia\",\n  \"customer\": {\n    \"name\": \"Luis Prueba\",\n    \"whatsapp\": \"9997654321\"\n  },\n  \"address\": {\n    \"street\": \"Calle 60 #123\",\n    \"betweenStreets\": \"61 y 63\",\n    \"neighborhood\": \"{{neighborhoodName}}\",\n    \"city\": \"Mérida\",\n    \"state\": \"Yucatán\",\n    \"postalCode\": \"97000\",\n    \"references\": \"Puerta roja\",\n    \"mapsLink\": \"https://maps.app.goo.gl/abc\"\n  }\n}"
+            },
+            "url": { "raw": "{{apiBase}}/orders", "host": ["{{apiBase}}"], "path": ["orders"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.test('shippingFee resuelto por el servidor', () => pm.expect(b.shippingFee).to.be.a('number'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST apartar ya apartado (espera 409)",
+          "description": "Reutiliza {{productId}} ya apartado por el primer pedido; debe devolver 409.",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productIds\": [\"{{productId}}\"],\n  \"deliveryMethod\": \"recoger\",\n  \"paymentMethod\": \"efectivo\",\n  \"customer\": { \"name\": \"Repetido\", \"whatsapp\": \"9990000000\" }\n}"
+            },
+            "url": { "raw": "{{apiBase}}/orders", "host": ["{{apiBase}}"], "path": ["orders"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('409 Conflict al re-apartar', () => pm.response.to.have.status(409));",
+                  "const b = pm.response.json();",
+                  "pm.test('código PRODUCT_NOT_AVAILABLE', () => pm.expect(b.code).to.eql('PRODUCT_NOT_AVAILABLE'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin (Basic auth)",
+      "auth": {
+        "type": "basic",
+        "basic": [
+          { "key": "username", "value": "{{adminUser}}" },
+          { "key": "password", "value": "{{adminPassword}}" }
+        ]
+      },
+      "item": [
+        {
+          "name": "POST crear producto",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Playera de prueba\",\n  \"description\": \"Creada desde Postman\",\n  \"price\": 199,\n  \"categoryId\": \"{{categoryId}}\",\n  \"size\": \"M\",\n  \"condition\": \"Excelente\",\n  \"brand\": \"TestBrand\",\n  \"color\": \"Azul\",\n  \"measurements\": \"Largo 70cm\"\n}"
+            },
+            "url": { "raw": "{{apiBase}}/admin/products", "host": ["{{apiBase}}"], "path": ["admin", "products"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "if (b.id) pm.environment.set('productId', b.id);",
+                  "pm.test('nace disponible', () => pm.expect(b.status).to.eql('disponible'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT actualizar producto",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Playera actualizada\",\n  \"description\": \"Editada desde Postman\",\n  \"price\": 220,\n  \"categoryId\": \"{{categoryId}}\",\n  \"size\": \"L\",\n  \"condition\": \"Buen estado\"\n}"
+            },
+            "url": { "raw": "{{apiBase}}/admin/products/{{productId}}", "host": ["{{apiBase}}"], "path": ["admin", "products", "{{productId}}"] }
+          }
+        },
+        {
+          "name": "PATCH cambiar status",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"vendido\"\n}" },
+            "url": { "raw": "{{apiBase}}/admin/products/{{productId}}/status", "host": ["{{apiBase}}"], "path": ["admin", "products", "{{productId}}", "status"] }
+          }
+        },
+        {
+          "name": "POST subir imagen (multipart)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "files", "type": "file", "src": [] }
+              ]
+            },
+            "url": { "raw": "{{apiBase}}/admin/products/{{productId}}/images", "host": ["{{apiBase}}"], "path": ["admin", "products", "{{productId}}", "images"] }
+          }
+        },
+        {
+          "name": "DELETE producto",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{apiBase}}/admin/products/{{productId}}", "host": ["{{apiBase}}"], "path": ["admin", "products", "{{productId}}"] }
+          }
+        },
+        {
+          "name": "GET órdenes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{apiBase}}/admin/orders", "host": ["{{apiBase}}"], "path": ["admin", "orders"] }
+          }
+        },
+        {
+          "name": "PATCH confirmar orden",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": { "raw": "{{apiBase}}/admin/orders/{{orderId}}/confirm", "host": ["{{apiBase}}"], "path": ["admin", "orders", "{{orderId}}", "confirm"] }
+          }
+        },
+        {
+          "name": "PATCH cancelar orden (libera items)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": { "raw": "{{apiBase}}/admin/orders/{{orderId}}/cancel", "host": ["{{apiBase}}"], "path": ["admin", "orders", "{{orderId}}", "cancel"] }
+          }
+        }
+      ]
+    }
+  ]
+}
