@@ -453,6 +453,14 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void returnsBadRequestForMalformedOrderId() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/orders/not-a-uuid")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", org.hamcrest.Matchers.is("INVALID_PARAMETER")));
+    }
+
     private String placeOrder(String customerName, String whatsapp) throws Exception {
         String body = """
                 {

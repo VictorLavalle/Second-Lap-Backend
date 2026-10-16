@@ -67,6 +67,15 @@ public class GlobalExceptionHandler {
                 .body(ApiError.of("PAYLOAD_TOO_LARGE", "El archivo o la solicitud excede el tamaño permitido"));
     }
 
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiError> handleTypeMismatch(
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException ex) {
+        // Only the parameter name is exposed: the raw value could reflect
+        // unsanitized client input back in the response.
+        return ResponseEntity.badRequest()
+                .body(ApiError.of("INVALID_PARAMETER", "Parámetro inválido: " + ex.getName()));
+    }
+
     // Catch-all: never leak stack traces or internal details to clients.
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleUnexpected(Exception ex) {
