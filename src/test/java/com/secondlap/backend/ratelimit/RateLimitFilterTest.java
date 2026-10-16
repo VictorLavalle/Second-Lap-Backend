@@ -68,12 +68,12 @@ class RateLimitFilterTest {
     }
 
     @Test
-    void throttlesAdminPathsByLoginBucketUsingRemoteAddr() throws Exception {
+    void throttlesAdminMeByLoginBucketUsingRemoteAddr() throws Exception {
         RateLimitService service = mock(RateLimitService.class);
         when(service.tryConsumeAdminLogin("8.8.8.8")).thenReturn(true);
         RateLimitFilter filter = new RateLimitFilter(service, mapper);
 
-        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/admin/orders");
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/admin/me");
         request.setRemoteAddr("8.8.8.8");
         MockHttpServletResponse response = new MockHttpServletResponse();
         FilterChain chain = mock(FilterChain.class);
@@ -85,9 +85,27 @@ class RateLimitFilterTest {
     }
 
     @Test
-    void deniesAdminWhenLoginBucketExhausted() throws Exception {
+    void throttlesOtherAdminPathsByAdminApiBucket() throws Exception {
         RateLimitService service = mock(RateLimitService.class);
-        when(service.tryConsumeAdminLogin(any())).thenReturn(false);
+        when(service.tryConsumeAdminApi("8.8.8.8")).thenReturn(true);
+        RateLimitFilter filter = new RateLimitFilter(service, mapper);
+
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/admin/orders");
+        request.setRemoteAddr("8.8.8.8");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(request, response, chain);
+
+        verify(service).tryConsumeAdminApi("8.8.8.8");
+        verify(service, never()).tryConsumeAdminLogin(any());
+        verify(chain).doFilter(request, response);
+    }
+
+    @Test
+    void deniesAdminWhenAdminApiBucketExhausted() throws Exception {
+        RateLimitService service = mock(RateLimitService.class);
+        when(service.tryConsumeAdminApi(any())).thenReturn(false);
         RateLimitFilter filter = new RateLimitFilter(service, mapper);
 
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/admin/products");
@@ -99,6 +117,25 @@ class RateLimitFilterTest {
 
         assertThat(response.getStatus()).isEqualTo(429);
         verify(chain, never()).doFilter(any(), any());
+    }
+
+    @Test
+    void exhaustedLoginBucketDoesNotBlockAdminApiWork() throws Exception {
+        RateLimitService service = mock(RateLimitService.class);
+        when(service.tryConsumeAdminApi("8.8.8.8")).thenReturn(true);
+        RateLimitFilter filter = new RateLimitFilter(service, mapper);
+
+        // admin API work routes through the admin-api bucket, never login
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/admin/products");
+        request.setRemoteAddr("8.8.8.8");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(request, response, chain);
+
+        verify(service).tryConsumeAdminApi("8.8.8.8");
+        verify(service, never()).tryConsumeAdminLogin(any());
+        verify(chain).doFilter(request, response);
     }
 
     @Test

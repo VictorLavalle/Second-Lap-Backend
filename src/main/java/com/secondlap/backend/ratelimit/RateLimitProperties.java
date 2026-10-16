@@ -11,7 +11,8 @@ public record RateLimitProperties(
         Tier publicReads,
         Tier orders,
         Tier ordersPerWhatsapp,
-        Tier adminLogin
+        Tier adminLogin,
+        Tier adminApi
 ) {
 
     public record Tier(long capacity, long windowSeconds) {

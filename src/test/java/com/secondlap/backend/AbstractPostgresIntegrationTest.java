@@ -66,6 +66,8 @@ public abstract class AbstractPostgresIntegrationTest {
         registry.add("secondlap.ratelimit.orders-per-whatsapp.window-seconds", () -> "60");
         registry.add("secondlap.ratelimit.admin-login.capacity", () -> "100000");
         registry.add("secondlap.ratelimit.admin-login.window-seconds", () -> "60");
+        registry.add("secondlap.ratelimit.admin-api.capacity", () -> "100000");
+        registry.add("secondlap.ratelimit.admin-api.window-seconds", () -> "60");
         registry.add("server.port", () -> "0");
         registry.add("spring.servlet.multipart.max-file-size", () -> "5MB");
         registry.add("spring.servlet.multipart.max-request-size", () -> "15MB");

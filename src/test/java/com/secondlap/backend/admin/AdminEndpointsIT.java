@@ -66,6 +66,25 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void meReturnsAuthenticatedAdminUsername() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/me").with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username", org.hamcrest.Matchers.is("admin")));
+    }
+
+    @Test
+    void meRejectsMissingCredentials() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/me"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void meRejectsInvalidCredentials() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/me").with(httpBasic("admin", "wrong")))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void createsProductWithBasicAuth() throws Exception {
         String body = """
                 {
@@ -239,22 +258,98 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void listsOrdersForAdmin() throws Exception {
+    void rejectsCancellingAConfirmedOrderWithoutResurrectingProducts() throws Exception {
+        String productId = availableProductId();
         String orderBody = """
                 {
                   "productIds": ["%s"],
-                  "customer": {"name": "Listado", "whatsapp": "9990001234"},
+                  "customer": {"name": "NoCancelar", "whatsapp": "9990002222"},
                   "deliveryMethod": "recoger",
                   "paymentMethod": "efectivo"
                 }
-                """.formatted(availableProductId());
+                """.formatted(productId);
+        String orderResponse = mockMvc.perform(post("/api/v1/orders")
+                        .contentType(MediaType.APPLICATION_JSON).content(orderBody))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String orderId = com.jayway.jsonpath.JsonPath.parse(orderResponse).read("$.id", String.class);
+
+        mockMvc.perform(patch("/api/v1/admin/orders/" + orderId + "/confirm")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/v1/admin/orders/" + orderId + "/cancel")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code", org.hamcrest.Matchers.is("INVALID_ORDER_TRANSITION")));
+
+        // the confirmed order's product stays sold; cancel must not resurrect it
+        assertThat(productRepository.findByPublicId(java.util.UUID.fromString(productId))
+                .orElseThrow().getStatus()).isEqualTo(ProductStatus.VENDIDO);
+    }
+
+    @Test
+    void rejectsConfirmingAnAlreadyCancelledOrder() throws Exception {
+        String productId = availableProductId();
+        String orderBody = """
+                {
+                  "productIds": ["%s"],
+                  "customer": {"name": "NoConfirmar", "whatsapp": "9990003333"},
+                  "deliveryMethod": "recoger",
+                  "paymentMethod": "efectivo"
+                }
+                """.formatted(productId);
+        String orderResponse = mockMvc.perform(post("/api/v1/orders")
+                        .contentType(MediaType.APPLICATION_JSON).content(orderBody))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String orderId = com.jayway.jsonpath.JsonPath.parse(orderResponse).read("$.id", String.class);
+
+        mockMvc.perform(patch("/api/v1/admin/orders/" + orderId + "/cancel")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/v1/admin/orders/" + orderId + "/confirm")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code", org.hamcrest.Matchers.is("INVALID_ORDER_TRANSITION")));
+
+        // the cancelled order released its product; confirm must not sell it
+        assertThat(productRepository.findByPublicId(java.util.UUID.fromString(productId))
+                .orElseThrow().getStatus()).isEqualTo(ProductStatus.DISPONIBLE);
+    }
+
+    @Test
+    void listsOrdersForAdminMostRecentFirst() throws Exception {
+        String firstProduct = availableProductId();
+        String firstBody = """
+                {
+                  "productIds": ["%s"],
+                  "customer": {"name": "Primero", "whatsapp": "9990001234"},
+                  "deliveryMethod": "recoger",
+                  "paymentMethod": "efectivo"
+                }
+                """.formatted(firstProduct);
         mockMvc.perform(post("/api/v1/orders")
-                .contentType(MediaType.APPLICATION_JSON).content(orderBody)).andExpect(status().isCreated());
+                .contentType(MediaType.APPLICATION_JSON).content(firstBody)).andExpect(status().isCreated());
+
+        String secondProduct = availableProductId();
+        String secondBody = """
+                {
+                  "productIds": ["%s"],
+                  "customer": {"name": "Segundo", "whatsapp": "9990005678"},
+                  "deliveryMethod": "recoger",
+                  "paymentMethod": "efectivo"
+                }
+                """.formatted(secondProduct);
+        mockMvc.perform(post("/api/v1/orders")
+                .contentType(MediaType.APPLICATION_JSON).content(secondBody)).andExpect(status().isCreated());
 
         mockMvc.perform(get("/api/v1/admin/orders").with(httpBasic("admin", "admin123")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
-                .andExpect(jsonPath("$[0].customer.whatsapp", org.hamcrest.Matchers.is("9990001234")));
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(2)))
+                .andExpect(jsonPath("$[0].customer.whatsapp", org.hamcrest.Matchers.is("9990005678")))
+                .andExpect(jsonPath("$[1].customer.whatsapp", org.hamcrest.Matchers.is("9990001234")));
     }
 
     @Test

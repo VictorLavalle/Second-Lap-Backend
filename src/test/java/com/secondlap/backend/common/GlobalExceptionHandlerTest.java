@@ -12,6 +12,17 @@ class GlobalExceptionHandlerTest {
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
 
     @Test
+    void mapsInvalidOrderTransitionTo409() {
+        ResponseEntity<ApiError> response =
+                handler.handleInvalidOrderTransition(
+                        new InvalidOrderTransitionException("No se puede cancelar un pedido en estado confirmed"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody().code()).isEqualTo("INVALID_ORDER_TRANSITION");
+        assertThat(response.getBody().message()).contains("confirmed");
+    }
+
+    @Test
     void mapsRateLimitTo429WithRetryAfter() {
         ResponseEntity<ApiError> response =
                 handler.handleRateLimit(new RateLimitExceededException("slow down"));

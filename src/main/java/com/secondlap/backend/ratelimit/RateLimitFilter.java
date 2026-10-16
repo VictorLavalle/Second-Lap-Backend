@@ -49,7 +49,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private boolean isAllowed(String path, String method, String ip) {
         if (path.startsWith("/api/v1/admin/")) {
-            return rateLimitService.tryConsumeAdminLogin(ip);
+            if ("GET".equals(method) && path.equals("/api/v1/admin/me")) {
+                return rateLimitService.tryConsumeAdminLogin(ip);
+            }
+            return rateLimitService.tryConsumeAdminApi(ip);
         }
         if ("POST".equals(method) && path.equals("/api/v1/orders")) {
             return rateLimitService.tryConsumeOrderByIp(ip);

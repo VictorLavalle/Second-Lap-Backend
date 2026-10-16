@@ -8,7 +8,7 @@ class RateLimitServiceTest {
 
     private RateLimitProperties props(long cap) {
         RateLimitProperties.Tier tier = new RateLimitProperties.Tier(cap, 60);
-        return new RateLimitProperties(tier, tier, tier, tier);
+        return new RateLimitProperties(tier, tier, tier, tier, tier);
     }
 
     @Test
@@ -41,5 +41,20 @@ class RateLimitServiceTest {
         // reads and admin-login tiers are not affected by the orders bucket
         assertThat(service.tryConsumePublicRead(ip)).isTrue();
         assertThat(service.tryConsumeAdminLogin(ip)).isTrue();
+    }
+
+    @Test
+    void adminLoginAndAdminApiAreIndependentTiers() {
+        RateLimitService service = new RateLimitService(props(1));
+        String ip = "3.3.3.3";
+
+        assertThat(service.tryConsumeAdminLogin(ip)).isTrue();
+        assertThat(service.tryConsumeAdminLogin(ip)).isFalse();
+        // exhausting the login bucket must not block normal admin API work
+        assertThat(service.tryConsumeAdminApi(ip)).isTrue();
+        assertThat(service.tryConsumeAdminApi(ip)).isFalse();
+        // and vice versa: the login bucket for a fresh IP is unaffected
+        assertThat(service.tryConsumeAdminApi("4.4.4.4")).isTrue();
+        assertThat(service.tryConsumeAdminLogin("4.4.4.4")).isTrue();
     }
 }

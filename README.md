@@ -86,8 +86,10 @@ any is missing. Never commit secrets (the repo is public).
 | `SECONDLAP_RL_ORDERS_WINDOW` | yes | Rate limit: orders by IP — window in seconds |
 | `SECONDLAP_RL_ORDERS_WA_CAPACITY` | yes | Rate limit: orders per WhatsApp — requests per window |
 | `SECONDLAP_RL_ORDERS_WA_WINDOW` | yes | Rate limit: orders per WhatsApp — window in seconds |
-| `SECONDLAP_RL_ADMIN_CAPACITY` | yes | Rate limit: admin login — requests per window |
+| `SECONDLAP_RL_ADMIN_CAPACITY` | yes | Rate limit: admin login (`GET /admin/me`) — requests per window |
 | `SECONDLAP_RL_ADMIN_WINDOW` | yes | Rate limit: admin login — window in seconds |
+| `SECONDLAP_RL_ADMIN_API_CAPACITY` | yes | Rate limit: admin API (rest of `/admin/**`) — requests per window |
+| `SECONDLAP_RL_ADMIN_API_WINDOW` | yes | Rate limit: admin API — window in seconds |
 
 See `.env.example` for a complete, ready-to-copy template with sample dev values.
 
@@ -166,9 +168,12 @@ Application-level defenses:
 
 - **Rate limiting** (Bucket4j, per instance): `POST /orders` is limited by IP and
   also by WhatsApp number (a single number cannot drain the inventory of unique
-  pieces); public GETs have a generous limit; admin login has an aggressive limit
-  (anti brute-force). Exceeding it returns `429 Too Many Requests`. Configurable
-  via the `SECONDLAP_RL_*` variables.
+  pieces); public GETs have a generous limit. Admin throttling is split in two:
+  the session check `GET /admin/me` uses an aggressive login limit (anti
+  brute-force), while the rest of `/admin/**` uses a separate, generous admin-API
+  limit so a server-side BFF — whose normal admin traffic all comes from a single
+  IP — is not throttled during regular use. Exceeding any limit returns
+  `429 Too Many Requests`. Configurable via the `SECONDLAP_RL_*` variables.
 - **Per-order item cap** (`SECONDLAP_ORDER_MAX_ITEMS`) as an extra defense against
   draining the catalog.
 - **Request size limits** (multipart and form POST) → `413 Payload Too Large`.

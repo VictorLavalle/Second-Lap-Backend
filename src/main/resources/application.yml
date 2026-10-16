@@ -57,6 +57,9 @@ secondlap:
     admin-login:
       capacity: ${SECONDLAP_RL_ADMIN_CAPACITY}
       window-seconds: ${SECONDLAP_RL_ADMIN_WINDOW}
+    admin-api:
+      capacity: ${SECONDLAP_RL_ADMIN_API_CAPACITY}
+      window-seconds: ${SECONDLAP_RL_ADMIN_API_WINDOW}
 
 management:
   endpoints:
