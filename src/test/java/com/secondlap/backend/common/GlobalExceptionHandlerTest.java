@@ -64,4 +64,36 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody().code()).isEqualTo("INTERNAL_ERROR");
         assertThat(response.getBody().message()).doesNotContain("secrets");
     }
+
+    @Test
+    void unexpectedErrorCarriesCorrelationIdInContext() {
+        ResponseEntity<ApiError> response =
+                handler.handleUnexpected(new RuntimeException("boom"));
+
+        assertThat(response.getBody().context()).containsKey("correlationId");
+        assertThat(response.getBody().context().get("correlationId")).asString().isNotEmpty();
+    }
+
+    @Test
+    void unexpectedErrorReusesRequestIdFromMdcAsCorrelationId() {
+        org.slf4j.MDC.put("requestId", "fixed-request-id");
+        try {
+            ResponseEntity<ApiError> response =
+                    handler.handleUnexpected(new RuntimeException("boom"));
+            assertThat(response.getBody().context().get("correlationId")).isEqualTo("fixed-request-id");
+        } finally {
+            org.slf4j.MDC.clear();
+        }
+    }
+
+    @Test
+    void clientErrorsHaveNoContext() {
+        ResponseEntity<ApiError> notFound =
+                handler.handleNotFound(new ResourceNotFoundException("missing"));
+        assertThat(notFound.getBody().context()).isNull();
+
+        ResponseEntity<ApiError> transition =
+                handler.handleInvalidOrderTransition(new InvalidOrderTransitionException("nope"));
+        assertThat(transition.getBody().context()).isNull();
+    }
 }

@@ -41,6 +41,9 @@ public class OrderEvent {
     @Column(name = "to_status", nullable = false)
     private OrderStatus toStatus;
 
+    @Column(name = "actor")
+    private String actor;
+
     @Generated(event = EventType.INSERT)
     @Column(name = "occurred_at", nullable = false, updatable = false, insertable = false)
     private OffsetDateTime occurredAt;
@@ -48,10 +51,11 @@ public class OrderEvent {
     protected OrderEvent() {
     }
 
-    public OrderEvent(Order order, OrderStatus fromStatus, OrderStatus toStatus) {
+    public OrderEvent(Order order, OrderStatus fromStatus, OrderStatus toStatus, String actor) {
         this.order = order;
         this.fromStatus = fromStatus;
         this.toStatus = toStatus;
+        this.actor = actor;
     }
 
     public UUID getPublicId() {
@@ -68,6 +72,10 @@ public class OrderEvent {
 
     public OrderStatus getToStatus() {
         return toStatus;
+    }
+
+    public String getActor() {
+        return actor;
     }
 
     public OffsetDateTime getOccurredAt() {

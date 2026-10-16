@@ -560,6 +560,7 @@ components:
             - { type: "null" }
           description: Null for the creation event
         toStatus: { $ref: '#/components/schemas/OrderStatus' }
+        actor: { type: [string, "null"], description: "Admin username who made the change; null for the customer creation event" }
         occurredAt: { type: string, format: date-time }
 
     ApiError:

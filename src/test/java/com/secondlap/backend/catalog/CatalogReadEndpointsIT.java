@@ -153,4 +153,12 @@ class CatalogReadEndpointsIT extends AbstractPostgresIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code", is("INVALID_PARAMETER")));
     }
+
+    @Test
+    void responseCarriesRequestIdHeader() throws Exception {
+        mockMvc.perform(get("/api/v1/products"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .header().exists("X-Request-Id"));
+    }
 }

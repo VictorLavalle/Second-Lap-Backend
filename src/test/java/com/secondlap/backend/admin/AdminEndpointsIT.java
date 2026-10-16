@@ -443,7 +443,21 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
                 .andExpect(jsonPath("$.id", org.hamcrest.Matchers.is(orderId)))
                 .andExpect(jsonPath("$.events", org.hamcrest.Matchers.hasSize(1)))
                 .andExpect(jsonPath("$.events[0].fromStatus", org.hamcrest.Matchers.nullValue()))
-                .andExpect(jsonPath("$.events[0].toStatus", org.hamcrest.Matchers.is("pendiente")));
+                .andExpect(jsonPath("$.events[0].toStatus", org.hamcrest.Matchers.is("pendiente")))
+                .andExpect(jsonPath("$.events[0].actor", org.hamcrest.Matchers.nullValue()));
+    }
+
+    @Test
+    void recordsAdminActorOnTransitionButNotOnCreationEvent() throws Exception {
+        String orderId = placeOrder("Autor", "9990003131");
+
+        mockMvc.perform(patch("/api/v1/admin/orders/" + orderId + "/confirm")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                // creation event: no actor; confirm event: recorded admin username
+                .andExpect(jsonPath("$.events[0].actor", org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.events[1].toStatus", org.hamcrest.Matchers.is("confirmado")))
+                .andExpect(jsonPath("$.events[1].actor", org.hamcrest.Matchers.is("admin")));
     }
 
     @Test

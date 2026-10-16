@@ -25,6 +25,7 @@ public class OrderMapper {
                 .map(event -> new OrderEventResponse(
                         event.getFromStatus() == null ? null : event.getFromStatus().getValue(),
                         event.getToStatus().getValue(),
+                        event.getActor(),
                         event.getOccurredAt()))
                 .toList();
 

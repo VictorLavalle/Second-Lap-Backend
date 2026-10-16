@@ -8,6 +8,7 @@ import java.time.OffsetDateTime;
 public record OrderEventResponse(
         String fromStatus,
         String toStatus,
+        String actor,
         OffsetDateTime occurredAt
 ) {
 }
