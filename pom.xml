@@ -21,6 +21,7 @@
         <java.version>25</java.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <testcontainers.version>1.21.4</testcontainers.version>
+        <logstash.logback.version>7.4</logstash.logback.version>
         <jacoco.version>0.8.13</jacoco.version>
         <sonar.projectKey>second-lap-backend</sonar.projectKey>
         <sonar.projectName>Second Lap Backend</sonar.projectName>
@@ -74,6 +75,14 @@
             <groupId>com.bucket4j</groupId>
             <artifactId>bucket4j-core</artifactId>
             <version>8.10.1</version>
+        </dependency>
+
+        <!-- Structured one-line JSON logs for the prod profile (log aggregators).
+             Pinned; the de-facto standard encoder, cleaner than a hand-rolled one. -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>${logstash.logback.version}</version>
         </dependency>
 
         <dependency>
