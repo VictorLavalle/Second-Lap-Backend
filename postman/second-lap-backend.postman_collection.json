@@ -328,6 +328,42 @@
           }
         },
         {
+          "name": "GET orden por id (timeline)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{apiBase}}/admin/orders/{{orderId}}", "host": ["{{apiBase}}"], "path": ["admin", "orders", "{{orderId}}"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('incluye timeline de eventos', () => pm.expect(b.events).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH completar orden",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": { "raw": "{{apiBase}}/admin/orders/{{orderId}}/complete", "host": ["{{apiBase}}"], "path": ["admin", "orders", "{{orderId}}", "complete"] }
+          }
+        },
+        {
+          "name": "PATCH entregar orden",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": { "raw": "{{apiBase}}/admin/orders/{{orderId}}/deliver", "host": ["{{apiBase}}"], "path": ["admin", "orders", "{{orderId}}", "deliver"] }
+          }
+        },
+        {
           "name": "PATCH cancelar orden (libera items)",
           "request": {
             "method": "PATCH",

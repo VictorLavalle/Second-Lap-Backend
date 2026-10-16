@@ -131,9 +131,17 @@ Admin (HTTP Basic, ADMIN role):
 
 - `POST/PUT/DELETE /api/v1/admin/products`, `PATCH /api/v1/admin/products/{id}/status`
 - `POST /api/v1/admin/products/{id}/images` (multipart)
-- `GET /api/v1/admin/orders`, `PATCH /api/v1/admin/orders/{id}/confirm`,
-  `PATCH /api/v1/admin/orders/{id}/cancel` (cancelling releases the items back to
-  available)
+- `GET /api/v1/admin/orders` (newest first),
+  `GET /api/v1/admin/orders/{id}` (single order with its status timeline)
+- Order lifecycle transitions (each stamps a milestone timestamp and appends a
+  status-change event to the order's timeline):
+  - `PATCH /api/v1/admin/orders/{id}/confirm` — `pending → confirmed` (products become `vendido`)
+  - `PATCH /api/v1/admin/orders/{id}/complete` — `confirmed → completed`
+  - `PATCH /api/v1/admin/orders/{id}/deliver` — `completed → delivered`
+  - `PATCH /api/v1/admin/orders/{id}/cancel` — `pending → cancelled` (releases items back to `disponible`)
+
+  Only these transitions are allowed; any other returns `409 INVALID_ORDER_TRANSITION`.
+  A confirmed/completed/delivered order cannot be cancelled (inventory is already sold).
 
 ## Tests
 
