@@ -3,6 +3,7 @@ package com.secondlap.backend.product.dto;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @JsonInclude(JsonInclude.Include.ALWAYS)
@@ -18,6 +19,8 @@ public record ProductResponse(
         String brand,
         String color,
         String measurements,
-        String status
+        String status,
+        OffsetDateTime createdAt,
+        OffsetDateTime modifiedDate
 ) {
 }

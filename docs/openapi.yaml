@@ -443,6 +443,8 @@ components:
         color: { type: [string, "null"] }
         measurements: { type: [string, "null"] }
         status: { $ref: '#/components/schemas/ProductStatus' }
+        createdAt: { type: string, format: date-time }
+        modifiedDate: { type: [string, "null"], format: date-time }
 
     AdminProductRequest:
       type: object
