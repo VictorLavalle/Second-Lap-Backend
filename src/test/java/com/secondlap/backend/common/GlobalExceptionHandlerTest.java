@@ -37,6 +37,20 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void mapsUnreadableBodyTo400MalformedRequest() {
+        var ex = new org.springframework.http.converter.HttpMessageNotReadableException(
+                "Cannot deserialize value of type `java.util.UUID` from String \"ply-002\"",
+                (org.springframework.http.HttpInputMessage) null);
+
+        ResponseEntity<ApiError> response = handler.handleUnreadableBody(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().code()).isEqualTo("MALFORMED_REQUEST");
+        // Jackson detail (Java type, raw value) must not leak to the client
+        assertThat(response.getBody().message()).doesNotContain("UUID").doesNotContain("ply-002");
+    }
+
+    @Test
     void mapsRateLimitTo429WithRetryAfter() {
         ResponseEntity<ApiError> response =
                 handler.handleRateLimit(new RateLimitExceededException("slow down"));
