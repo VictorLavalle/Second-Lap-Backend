@@ -104,8 +104,8 @@ public class Order {
         items.add(item);
     }
 
-    public void recordEvent(OrderStatus from, OrderStatus to) {
-        events.add(new OrderEvent(this, from, to));
+    public void recordEvent(OrderStatus from, OrderStatus to, String actor) {
+        events.add(new OrderEvent(this, from, to, actor));
     }
 
     public void applyTotals(BigDecimal subtotal, BigDecimal shippingFee, BigDecimal total) {

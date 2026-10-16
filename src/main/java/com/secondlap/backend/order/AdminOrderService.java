@@ -2,9 +2,12 @@ package com.secondlap.backend.order;
 
 import com.secondlap.backend.common.ResourceNotFoundException;
 import com.secondlap.backend.common.InvalidOrderTransitionException;
+import com.secondlap.backend.admin.CurrentAdminProvider;
 import com.secondlap.backend.config.StoreProperties;
 import com.secondlap.backend.order.dto.OrderResponse;
 import com.secondlap.backend.product.ProductRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,19 +19,24 @@ import java.util.UUID;
 @Transactional
 public class AdminOrderService {
 
+    private static final Logger log = LoggerFactory.getLogger(AdminOrderService.class);
+
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
     private final OrderMapper orderMapper;
     private final StoreProperties storeProperties;
+    private final CurrentAdminProvider currentAdminProvider;
 
     public AdminOrderService(OrderRepository orderRepository,
                              ProductRepository productRepository,
                              OrderMapper orderMapper,
-                             StoreProperties storeProperties) {
+                             StoreProperties storeProperties,
+                             CurrentAdminProvider currentAdminProvider) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
         this.orderMapper = orderMapper;
         this.storeProperties = storeProperties;
+        this.currentAdminProvider = currentAdminProvider;
     }
 
     @Transactional(readOnly = true)
@@ -46,27 +54,30 @@ public class AdminOrderService {
     public OrderResponse confirm(UUID publicId) {
         Order order = getByPublicId(publicId);
         requireStatus(order, OrderStatus.PENDING, "confirmar");
-        transitionTo(order, OrderStatus.CONFIRMED);
+        String actor = transitionTo(order, OrderStatus.CONFIRMED);
         order.setConfirmedAt(OffsetDateTime.now(java.time.ZoneOffset.UTC));
         for (OrderItem item : order.getItems()) {
             item.getProduct().setStatus(com.secondlap.backend.product.ProductStatus.VENDIDO);
         }
+        log.info("admin '{}' confirmó el pedido {}", actor, publicId);
         return orderMapper.toResponse(order, storeProperties.whatsapp());
     }
 
     public OrderResponse complete(UUID publicId) {
         Order order = getByPublicId(publicId);
         requireStatus(order, OrderStatus.CONFIRMED, "completar");
-        transitionTo(order, OrderStatus.COMPLETED);
+        String actor = transitionTo(order, OrderStatus.COMPLETED);
         order.setCompletedAt(OffsetDateTime.now(java.time.ZoneOffset.UTC));
+        log.info("admin '{}' completó el pedido {}", actor, publicId);
         return orderMapper.toResponse(order, storeProperties.whatsapp());
     }
 
     public OrderResponse deliver(UUID publicId) {
         Order order = getByPublicId(publicId);
         requireStatus(order, OrderStatus.COMPLETED, "entregar");
-        transitionTo(order, OrderStatus.DELIVERED);
+        String actor = transitionTo(order, OrderStatus.DELIVERED);
         order.setDeliveredAt(OffsetDateTime.now(java.time.ZoneOffset.UTC));
+        log.info("admin '{}' entregó el pedido {}", actor, publicId);
         return orderMapper.toResponse(order, storeProperties.whatsapp());
     }
 
@@ -78,17 +89,20 @@ public class AdminOrderService {
     public OrderResponse cancel(UUID publicId) {
         Order order = getByPublicId(publicId);
         requireStatus(order, OrderStatus.PENDING, "cancelar");
-        transitionTo(order, OrderStatus.CANCELLED);
+        String actor = transitionTo(order, OrderStatus.CANCELLED);
         order.setCancelledAt(OffsetDateTime.now(java.time.ZoneOffset.UTC));
         for (OrderItem item : order.getItems()) {
             productRepository.releaseToAvailable(item.getProduct().getId());
         }
+        log.info("admin '{}' canceló el pedido {}", actor, publicId);
         return orderMapper.toResponse(order, storeProperties.whatsapp());
     }
 
-    private void transitionTo(Order order, OrderStatus target) {
-        order.recordEvent(order.getStatus(), target);
+    private String transitionTo(Order order, OrderStatus target) {
+        String actor = currentAdminProvider.username();
+        order.recordEvent(order.getStatus(), target, actor);
         order.setStatus(target);
+        return actor;
     }
 
     private void requireStatus(Order order, OrderStatus expected, String action) {

@@ -103,7 +103,7 @@ public class OrderService {
                 ? address.getShippingFee()
                 : BigDecimal.ZERO;
         order.applyTotals(subtotal, shippingFee, subtotal.add(shippingFee));
-        order.recordEvent(null, OrderStatus.PENDING);
+        order.recordEvent(null, OrderStatus.PENDING, null);
 
         Order saved = orderRepository.save(order);
         return orderMapper.toResponse(saved, storeProperties.whatsapp());
