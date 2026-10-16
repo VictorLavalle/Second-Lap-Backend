@@ -15,6 +15,8 @@ import com.secondlap.backend.order.dto.ShippingAddressRequest;
 import com.secondlap.backend.product.Product;
 import com.secondlap.backend.product.ProductRepository;
 import com.secondlap.backend.ratelimit.RateLimitService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +29,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class OrderService {
+
+    private static final Logger log = LoggerFactory.getLogger(OrderService.class);
 
     private final ProductRepository productRepository;
     private final OrderRepository orderRepository;
@@ -106,6 +110,9 @@ public class OrderService {
         order.recordEvent(null, OrderStatus.PENDING, null);
 
         Order saved = orderRepository.save(order);
+        log.info("Pedido {} creado: {} item(s), total {}, entrega '{}'",
+                saved.getPublicId(), saved.getItems().size(), saved.getTotal(),
+                saved.getDeliveryMethod().getValue());
         return orderMapper.toResponse(saved, storeProperties.whatsapp());
     }
 
