@@ -1,111 +1,137 @@
 # Second Lap — Backend
 
-Backend de "Second Lap", una tienda de ropa de segunda mano donde cada prenda es
-una pieza única (cantidad = 1). Expone una API REST versionada en `/api/v1` que
-reemplaza la frontera de datos del frontend (Next.js), por lo que las respuestas
-calzan con los tipos que consume la UI.
+Backend for "Second Lap", a second-hand clothing store where every garment is a
+unique piece (quantity = 1). It exposes a versioned REST API under `/api/v1`
+that replaces the frontend's (Next.js) data boundary, so the responses match the
+types the UI consumes.
 
 ## Stack
 
 - Java 25 (LTS) + Spring Boot 3.5.x
 - PostgreSQL 17
-- Maven (wrapper `./mvnw`)
-- Flyway (migraciones) · JPA/Hibernate (mapeo explícito)
-- JUnit 5 + Testcontainers (PostgreSQL real) para integración
+- Maven (`./mvnw` wrapper)
+- Flyway (migrations) · JPA/Hibernate (explicit mapping)
+- JUnit 5 + Testcontainers (real PostgreSQL) for integration
 
-## Requisitos
+## Requirements
 
 - JDK 25
-- Docker (para PostgreSQL vía docker-compose y para los tests de integración)
+- Docker (for PostgreSQL via docker-compose and for the integration tests)
 
-## Cómo correr
+## How to run
 
-### Opción A — todo con docker-compose (Postgres + app)
+Configuration is fully externalized: `application.yml` has **no** fallback
+defaults, so every variable listed below must be supplied by the environment.
+This maps cleanly onto a secrets manager in production. `.env` is gitignored;
+never commit real secrets (the repo is public).
+
+### Option A — everything with docker-compose (Postgres + app)
 
 ```bash
-cp .env.example .env   # ajusta los valores de dev; .env está gitignored
+cp .env.example .env   # fill in your dev values; .env is gitignored
 docker compose up --build
 ```
 
-La API queda en `http://localhost:8080`. Flyway aplica el esquema y el seed al
-arrancar.
+The API is served at `http://localhost:8080`. Flyway applies the schema and seed
+on startup. Compose loads the full `.env` and only overrides the values that must
+differ inside its network (the DB host and the uploads directory).
 
-### Opción B — Postgres en Docker, app local
+### Option B — Postgres in Docker, app running locally
 
 ```bash
 docker compose up -d postgres
-
-# las credenciales no tienen default (repo público): expórtalas antes de arrancar
-export SECONDLAP_DB_PASSWORD=your-dev-password
-export SECONDLAP_ADMIN_USERNAME=admin
-export SECONDLAP_ADMIN_PASSWORD=your-dev-password
-./mvnw spring-boot:run
 ```
 
-El perfil por defecto es `dev` y apunta a `localhost:5432/secondlap`. Si no
-exportas las credenciales, la app falla al arrancar (fail-fast intencional: no
-hay contraseñas por defecto en el repo).
+The default profile is `dev` and points at `localhost:5432/secondlap`. Because
+nothing has a default anymore, the app needs the **complete** set of variables
+from the table below to start; if any is missing it fails fast at startup.
 
-## Variables de entorno
+- **IntelliJ:** use the *EnvFile* plugin on the `SecondLapBackendApplication` run
+  configuration and point it at your `.env` (single source of truth), or paste
+  the variables into the run configuration's *Environment variables* field.
+- **Shell / Maven:** load the `.env` into the shell before starting:
 
-La configuración se inyecta por variables de entorno; los valores por defecto
-sirven para desarrollo local. **Nunca** se commiten secretos (el repo es
-público).
+  ```bash
+  set -a; source .env; set +a
+  ./mvnw spring-boot:run
+  ```
 
-| Variable | Default | Descripción |
-|----------|---------|-------------|
-| `SECONDLAP_DB_URL` | `jdbc:postgresql://localhost:5432/secondlap` | JDBC URL |
-| `SECONDLAP_DB_USERNAME` | `secondlap` | Usuario de la BD |
-| `SECONDLAP_DB_PASSWORD` | _(requerida)_ | Password de la BD (sin default; repo público) |
-| `SERVER_PORT` | `8080` | Puerto HTTP |
-| `SECONDLAP_CORS_ALLOWED_ORIGINS` | `http://localhost:3000` | Origen del frontend permitido |
-| `SECONDLAP_UPLOADS_DIR` | `./uploads` | Directorio local de imágenes |
-| `SECONDLAP_UPLOADS_URL_PREFIX` | `/uploads` | Prefijo público para servir imágenes |
-| `SECONDLAP_UPLOADS_MAX_BYTES` | `5242880` | Tamaño máximo de subida (5 MB) |
-| `SECONDLAP_STORE_WHATSAPP` | `529996384026` | WhatsApp de la tienda (52 + 10 dígitos) |
-| `SECONDLAP_ADMIN_USERNAME` | `admin` | Usuario admin creado al arranque |
-| `SECONDLAP_ADMIN_PASSWORD` | _(requerida)_ | Password admin (sin default; repo público) |
+## Environment variables
 
-## Migraciones (Flyway)
+Configuration is injected via environment variables. There are **no** defaults in
+`application.yml`: all variables are required, so the app fails fast at startup if
+any is missing. Never commit secrets (the repo is public).
 
-Las migraciones viven en `src/main/resources/db/migration` y se aplican
-automáticamente al arrancar la app.
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `SECONDLAP_DB_URL` | yes | JDBC URL (e.g. `jdbc:postgresql://localhost:5432/secondlap`); credentials are not embedded |
+| `SECONDLAP_DB_USERNAME` | yes | Database user |
+| `SECONDLAP_DB_PASSWORD` | yes | Database password (no default; public repo) |
+| `SECONDLAP_ADMIN_USERNAME` | yes | Admin user created on startup |
+| `SECONDLAP_ADMIN_PASSWORD` | yes | Admin password (no default; public repo) |
+| `SERVER_PORT` | yes | HTTP port (e.g. `8080`) |
+| `SECONDLAP_CORS_ALLOWED_ORIGINS` | yes | Allowed frontend origin (e.g. `http://localhost:3000`) |
+| `SECONDLAP_UPLOADS_DIR` | yes | Local image directory (e.g. `./uploads`) |
+| `SECONDLAP_UPLOADS_URL_PREFIX` | yes | Public prefix for serving images (e.g. `/uploads`) |
+| `SECONDLAP_UPLOADS_MAX_BYTES` | yes | Max upload size in bytes (e.g. `5242880` = 5 MB) |
+| `SECONDLAP_MAX_FILE_SIZE` | yes | Multipart max file size (e.g. `5MB`) |
+| `SECONDLAP_MAX_REQUEST_SIZE` | yes | Multipart max request size (e.g. `15MB`) |
+| `SECONDLAP_MAX_FORM_POST` | yes | Tomcat max form POST size (e.g. `2MB`) |
+| `SECONDLAP_MAX_SWALLOW` | yes | Tomcat max swallow size (e.g. `2MB`) |
+| `SECONDLAP_STORE_WHATSAPP` | yes | Store WhatsApp (52 + 10 digits) |
+| `SECONDLAP_ORDER_MAX_ITEMS` | yes | Max items per order (e.g. `20`) |
+| `SECONDLAP_RL_READS_CAPACITY` | yes | Rate limit: public reads — requests per window |
+| `SECONDLAP_RL_READS_WINDOW` | yes | Rate limit: public reads — window in seconds |
+| `SECONDLAP_RL_ORDERS_CAPACITY` | yes | Rate limit: orders by IP — requests per window |
+| `SECONDLAP_RL_ORDERS_WINDOW` | yes | Rate limit: orders by IP — window in seconds |
+| `SECONDLAP_RL_ORDERS_WA_CAPACITY` | yes | Rate limit: orders per WhatsApp — requests per window |
+| `SECONDLAP_RL_ORDERS_WA_WINDOW` | yes | Rate limit: orders per WhatsApp — window in seconds |
+| `SECONDLAP_RL_ADMIN_CAPACITY` | yes | Rate limit: admin login — requests per window |
+| `SECONDLAP_RL_ADMIN_WINDOW` | yes | Rate limit: admin login — window in seconds |
 
-- `V1__initial_schema.sql` — esquema (tablas, CHECKs, índices).
-- `V2__seed_dev_data.sql` — seed de desarrollo (sin credenciales).
-- `V3__seed_real_data.sql` — datos reales del catálogo (categorías, colonias,
-  productos).
+See `.env.example` for a complete, ready-to-copy template with sample dev values.
 
-Convención: una migración por cambio, versionada e inmutable una vez aplicada.
-Esquema y datos (seed) van en archivos separados. `ddl-auto` es `validate`
-(Hibernate valida el mapeo contra el esquema de Flyway; nunca modifica la BD).
+## Migrations (Flyway)
 
-### Credenciales de admin (desarrollo)
+Migrations live in `src/main/resources/db/migration` and are applied
+automatically on startup.
 
-El admin se crea al arranque desde `SECONDLAP_ADMIN_USERNAME` /
-`SECONDLAP_ADMIN_PASSWORD` (requeridas; sin valores por defecto en el repo). No se
-commite ningún hash; rota la contraseña por entorno. El panel admin usa HTTP
-Basic.
+- `V1__initial_schema.sql` — schema (tables, CHECKs, indexes).
+- `V2__seed_dev_data.sql` — development seed (no credentials).
+- `V3__seed_real_data.sql` — real catalog data (categories, neighborhoods,
+  products).
+
+Convention: one migration per change, versioned and immutable once applied.
+Schema and data (seed) live in separate files. `ddl-auto` is `validate`
+(Hibernate validates the mapping against the Flyway schema; it never modifies the
+database).
+
+### Admin credentials (development)
+
+The admin is created on startup from `SECONDLAP_ADMIN_USERNAME` /
+`SECONDLAP_ADMIN_PASSWORD` (required; no defaults in the repo). No hash is
+committed; rotate the password per environment. The admin panel uses HTTP Basic.
 
 ## API
 
-Pública (storefront):
+Public (storefront):
 
-- `GET /api/v1/products` — filtros: `category` (UUID), `size`, `condition`,
-  `status`, `maxPrice`; `sort` (p. ej. `price,asc`).
+- `GET /api/v1/products` — filters: `category` (UUID), `size`, `condition`,
+  `status`, `maxPrice`; `sort` (e.g. `price,asc`).
 - `GET /api/v1/products/{id}`
-- `GET /api/v1/products/{id}/similar` — misma categoría, disponibles (default 8).
+- `GET /api/v1/products/{id}/similar` — same category, available (default 8).
 - `GET /api/v1/categories`
 - `GET /api/v1/neighborhoods`
-- `POST /api/v1/orders` — aparta atómicamente todos los items en una transacción,
-  calcula totales server-side y devuelve la orden + el WhatsApp de la tienda.
+- `POST /api/v1/orders` — atomically reserves all items in a single transaction,
+  computes totals server-side, and returns the order plus the store's WhatsApp.
 
-Admin (HTTP Basic, rol ADMIN):
+Admin (HTTP Basic, ADMIN role):
 
 - `POST/PUT/DELETE /api/v1/admin/products`, `PATCH /api/v1/admin/products/{id}/status`
 - `POST /api/v1/admin/products/{id}/images` (multipart)
 - `GET /api/v1/admin/orders`, `PATCH /api/v1/admin/orders/{id}/confirm`,
-  `PATCH /api/v1/admin/orders/{id}/cancel` (cancelar libera los items a disponible)
+  `PATCH /api/v1/admin/orders/{id}/cancel` (cancelling releases the items back to
+  available)
 
 ## Tests
 
@@ -113,49 +139,51 @@ Admin (HTTP Basic, rol ADMIN):
 ./mvnw clean verify
 ```
 
-Corre tests unitarios (surefire) y de integración `*IT` con Testcontainers
-(failsafe). La integración levanta un PostgreSQL 17 real.
+Runs unit tests (surefire) and `*IT` integration tests with Testcontainers
+(failsafe). The integration suite spins up a real PostgreSQL 17.
 
-### Nota de Testcontainers en macOS (Docker Desktop)
+### Testcontainers note on macOS (Docker Desktop)
 
-Si Testcontainers no encuentra el daemon ("Could not find a valid Docker
-environment"), exporta el socket del contexto activo antes de correr los tests:
+If Testcontainers cannot find the daemon ("Could not find a valid Docker
+environment"), export the active context's socket before running the tests:
 
 ```bash
 export DOCKER_HOST=$(docker context inspect --format '{{.Endpoints.docker.Host}}')
 ./mvnw clean verify
 ```
 
-En CI (`ubuntu-latest`) no hace falta: el runner trae Docker en la ruta estándar.
+On CI (`ubuntu-latest`) this is not needed: the runner ships Docker at the
+standard path.
 
 ## CI
 
-GitHub Actions (`.github/workflows/ci.yml`) corre `./mvnw clean verify` sobre
-JDK 25 (Temurin) con cache de Maven, en cada push a `main` y en cada pull
-request.
+GitHub Actions (`.github/workflows/ci.yml`) runs `./mvnw clean verify` on JDK 25
+(Temurin) with Maven caching, on every push to `main` and every pull request.
 
-## Seguridad
+## Security
 
-Defensas aplicadas a nivel de aplicación:
+Application-level defenses:
 
-- **Rate limiting** (Bucket4j, por instancia): `POST /orders` limitado por IP y
-  además por número de WhatsApp (un mismo número no puede agotar el inventario de
-  piezas únicas); GET públicos con un límite holgado; login admin con límite
-  agresivo (anti fuerza bruta). Al exceder se devuelve `429 Too Many Requests`.
-  Configurable por variables `SECONDLAP_RL_*`.
-- **Límite de items por pedido** (`SECONDLAP_ORDER_MAX_ITEMS`, default 20) como
-  defensa extra contra el agotamiento del catálogo.
-- **Límites de tamaño de request** (multipart y form POST) → `413 Payload Too Large`.
-- **Security headers**: HSTS (en HTTPS), `X-Content-Type-Options`, `X-Frame-Options: DENY`,
-  `Referrer-Policy`, y una CSP restrictiva.
-- **CORS estricto**: solo el origen del frontend, métodos y headers acotados.
-- **HTTPS-only en producción**: el perfil `prod` activa `require-https` (redirige
-  HTTP→HTTPS). En dev se mantiene HTTP para no romper el flujo local.
-- **Errores sin fugas**: el manejo global nunca devuelve stack traces al cliente.
-- **Admin**: HTTP Basic + BCrypt contra `admin_user`; `/api/v1/admin/**` requiere rol ADMIN.
+- **Rate limiting** (Bucket4j, per instance): `POST /orders` is limited by IP and
+  also by WhatsApp number (a single number cannot drain the inventory of unique
+  pieces); public GETs have a generous limit; admin login has an aggressive limit
+  (anti brute-force). Exceeding it returns `429 Too Many Requests`. Configurable
+  via the `SECONDLAP_RL_*` variables.
+- **Per-order item cap** (`SECONDLAP_ORDER_MAX_ITEMS`) as an extra defense against
+  draining the catalog.
+- **Request size limits** (multipart and form POST) → `413 Payload Too Large`.
+- **Security headers**: HSTS (over HTTPS), `X-Content-Type-Options`,
+  `X-Frame-Options: DENY`, `Referrer-Policy`, and a restrictive CSP.
+- **Strict CORS**: only the frontend origin, with narrowed methods and headers.
+- **HTTPS-only in production**: the `prod` profile enables `require-https`
+  (redirects HTTP→HTTPS). Dev stays on HTTP so the local flow is not broken.
+- **No leaking errors**: the global handler never returns stack traces to the
+  client.
+- **Admin**: HTTP Basic + BCrypt against `admin_user`; `/api/v1/admin/**` requires
+  the ADMIN role.
 
-> **DDoS volumétrico:** no es responsabilidad de la aplicación y no se puede
-> resolver en Spring — para cuando el tráfico llega al proceso, el daño ya está
-> hecho. Al desplegar, poné el backend detrás de un CDN/WAF (p. ej. Cloudflare)
-> que absorba el volumen. El rate limiting de la app cubre el abuso de un cliente
-> individual y los scripts, no un ataque distribuido.
+> **Volumetric DDoS:** not the application's responsibility and not solvable in
+> Spring — by the time traffic reaches the process, the damage is done. When
+> deploying, put the backend behind a CDN/WAF (e.g. Cloudflare) that absorbs the
+> volume. The app's rate limiting covers abuse from an individual client and
+> scripts, not a distributed attack.
