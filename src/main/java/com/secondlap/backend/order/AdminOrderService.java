@@ -47,7 +47,7 @@ public class AdminOrderService {
         Order order = getByPublicId(publicId);
         requireStatus(order, OrderStatus.PENDING, "confirmar");
         transitionTo(order, OrderStatus.CONFIRMED);
-        order.setConfirmedAt(OffsetDateTime.now());
+        order.setConfirmedAt(OffsetDateTime.now(java.time.ZoneOffset.UTC));
         for (OrderItem item : order.getItems()) {
             item.getProduct().setStatus(com.secondlap.backend.product.ProductStatus.VENDIDO);
         }
@@ -58,7 +58,7 @@ public class AdminOrderService {
         Order order = getByPublicId(publicId);
         requireStatus(order, OrderStatus.CONFIRMED, "completar");
         transitionTo(order, OrderStatus.COMPLETED);
-        order.setCompletedAt(OffsetDateTime.now());
+        order.setCompletedAt(OffsetDateTime.now(java.time.ZoneOffset.UTC));
         return orderMapper.toResponse(order, storeProperties.whatsapp());
     }
 
@@ -66,7 +66,7 @@ public class AdminOrderService {
         Order order = getByPublicId(publicId);
         requireStatus(order, OrderStatus.COMPLETED, "entregar");
         transitionTo(order, OrderStatus.DELIVERED);
-        order.setDeliveredAt(OffsetDateTime.now());
+        order.setDeliveredAt(OffsetDateTime.now(java.time.ZoneOffset.UTC));
         return orderMapper.toResponse(order, storeProperties.whatsapp());
     }
 
@@ -79,7 +79,7 @@ public class AdminOrderService {
         Order order = getByPublicId(publicId);
         requireStatus(order, OrderStatus.PENDING, "cancelar");
         transitionTo(order, OrderStatus.CANCELLED);
-        order.setCancelledAt(OffsetDateTime.now());
+        order.setCancelledAt(OffsetDateTime.now(java.time.ZoneOffset.UTC));
         for (OrderItem item : order.getItems()) {
             productRepository.releaseToAvailable(item.getProduct().getId());
         }
