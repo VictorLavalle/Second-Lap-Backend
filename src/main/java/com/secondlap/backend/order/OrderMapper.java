@@ -1,6 +1,7 @@
 package com.secondlap.backend.order;
 
 import com.secondlap.backend.order.dto.CustomerResponse;
+import com.secondlap.backend.order.dto.OrderEventResponse;
 import com.secondlap.backend.order.dto.OrderItemResponse;
 import com.secondlap.backend.order.dto.OrderResponse;
 import com.secondlap.backend.order.dto.ShippingAddressResponse;
@@ -20,6 +21,13 @@ public class OrderMapper {
                         item.getPriceSnapshot()))
                 .toList();
 
+        List<OrderEventResponse> events = order.getEvents().stream()
+                .map(event -> new OrderEventResponse(
+                        event.getFromStatus() == null ? null : event.getFromStatus().getValue(),
+                        event.getToStatus().getValue(),
+                        event.getOccurredAt()))
+                .toList();
+
         return new OrderResponse(
                 order.getPublicId().toString(),
                 items,
@@ -32,6 +40,11 @@ public class OrderMapper {
                 order.getTotal(),
                 order.getStatus().getValue(),
                 order.getCreatedAt(),
+                order.getConfirmedAt(),
+                order.getCompletedAt(),
+                order.getDeliveredAt(),
+                order.getCancelledAt(),
+                events,
                 storeWhatsapp);
     }
 

@@ -3,6 +3,8 @@ package com.secondlap.backend.order;
 public enum OrderStatus {
     PENDING("pending"),
     CONFIRMED("confirmed"),
+    COMPLETED("completed"),
+    DELIVERED("delivered"),
     CANCELLED("cancelled");
 
     private final String value;

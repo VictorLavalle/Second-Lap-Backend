@@ -19,6 +19,11 @@ public record OrderResponse(
         BigDecimal total,
         String status,
         OffsetDateTime createdAt,
+        OffsetDateTime confirmedAt,
+        OffsetDateTime completedAt,
+        OffsetDateTime deliveredAt,
+        OffsetDateTime cancelledAt,
+        List<OrderEventResponse> events,
         String storeWhatsapp
 ) {
 }

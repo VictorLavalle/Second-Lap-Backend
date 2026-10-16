@@ -25,9 +25,24 @@ public class AdminOrderController {
         return adminOrderService.findAll();
     }
 
+    @GetMapping("/{id}")
+    public OrderResponse getOrder(@PathVariable UUID id) {
+        return adminOrderService.findByPublicId(id);
+    }
+
     @PatchMapping("/{id}/confirm")
     public OrderResponse confirm(@PathVariable UUID id) {
         return adminOrderService.confirm(id);
+    }
+
+    @PatchMapping("/{id}/complete")
+    public OrderResponse complete(@PathVariable UUID id) {
+        return adminOrderService.complete(id);
+    }
+
+    @PatchMapping("/{id}/deliver")
+    public OrderResponse deliver(@PathVariable UUID id) {
+        return adminOrderService.deliver(id);
     }
 
     @PatchMapping("/{id}/cancel")

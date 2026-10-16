@@ -270,6 +270,22 @@ paths:
               schema: { type: array, items: { $ref: '#/components/schemas/OrderResponse' } }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
+  /admin/orders/{id}:
+    get:
+      tags: [Admin Orders]
+      summary: Get a single order with its status timeline
+      security: [{ basicAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The order
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /admin/orders/{id}/confirm:
     patch:
       tags: [Admin Orders]
@@ -287,6 +303,48 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409':
           description: The order is not PENDING, so it cannot be confirmed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /admin/orders/{id}/complete:
+    patch:
+      tags: [Admin Orders]
+      summary: Mark a confirmed order as completed (prepared/ready)
+      security: [{ basicAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Order completed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The order is not CONFIRMED, so it cannot be completed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /admin/orders/{id}/deliver:
+    patch:
+      tags: [Admin Orders]
+      summary: Mark a completed order as delivered to the customer
+      security: [{ basicAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Order delivered
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The order is not COMPLETED, so it cannot be delivered
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
@@ -347,7 +405,7 @@ components:
       enum: ["transferencia", "efectivo", "tarjeta"]
     OrderStatus:
       type: string
-      enum: ["pending", "confirmed", "cancelled"]
+      enum: ["pending", "confirmed", "completed", "delivered", "cancelled"]
 
     CategoryResponse:
       type: object
@@ -480,7 +538,26 @@ components:
         total: { type: number }
         status: { $ref: '#/components/schemas/OrderStatus' }
         createdAt: { type: string, format: date-time }
+        confirmedAt: { type: [string, "null"], format: date-time }
+        completedAt: { type: [string, "null"], format: date-time }
+        deliveredAt: { type: [string, "null"], format: date-time }
+        cancelledAt: { type: [string, "null"], format: date-time }
+        events:
+          type: array
+          description: Status change timeline, oldest first
+          items: { $ref: '#/components/schemas/OrderEvent' }
         storeWhatsapp: { type: string, description: "Store WhatsApp (52 + 10 digits) for building the wa.me link" }
+
+    OrderEvent:
+      type: object
+      properties:
+        fromStatus:
+          oneOf:
+            - { $ref: '#/components/schemas/OrderStatus' }
+            - { type: "null" }
+          description: Null for the creation event
+        toStatus: { $ref: '#/components/schemas/OrderStatus' }
+        occurredAt: { type: string, format: date-time }
 
     ApiError:
       type: object
