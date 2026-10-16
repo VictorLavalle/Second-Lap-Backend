@@ -175,8 +175,13 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
     @Test
     void uploadsProductImageToLocalDisk() throws Exception {
         String productId = availableProductId();
+        // a real opaque PNG; the storage service resizes/recompresses it to JPEG
+        java.awt.image.BufferedImage img =
+                new java.awt.image.BufferedImage(600, 400, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.io.ByteArrayOutputStream buf = new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(img, "png", buf);
         MockMultipartFile image = new MockMultipartFile(
-                "files", "foto.png", "image/png", new byte[]{10, 20, 30, 40});
+                "files", "foto.png", "image/png", buf.toByteArray());
 
         String responseBody = mockMvc.perform(multipart("/api/v1/admin/products/" + productId + "/images")
                         .file(image)
@@ -184,11 +189,11 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
-        // the stored URL points under /uploads and the file exists on local disk
+        // opaque PNG is converted to JPEG; the stored file exists on local disk
         java.util.List<?> images = com.jayway.jsonpath.JsonPath.parse(responseBody)
                 .read("$.images", java.util.List.class);
         String storedUrl = images.get(images.size() - 1).toString();
-        assertThat(storedUrl).startsWith("/uploads/").endsWith(".png");
+        assertThat(storedUrl).startsWith("/uploads/").endsWith(".jpg");
 
         String storedName = storedUrl.substring("/uploads/".length());
         Path onDisk = Path.of("uploads").resolve(storedName);
