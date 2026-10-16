@@ -40,6 +40,10 @@ public class RateLimitService {
         return bucketFor("admin-login", ip, properties.adminLogin()).tryConsume(1);
     }
 
+    public boolean tryConsumeAdminApi(String ip) {
+        return bucketFor("admin-api", ip, properties.adminApi()).tryConsume(1);
+    }
+
     private Bucket bucketFor(String tier, String key, RateLimitProperties.Tier config) {
         return buckets.computeIfAbsent(tier + ":" + key, k -> Bucket.builder()
                 .addLimit(Bandwidth.builder()
