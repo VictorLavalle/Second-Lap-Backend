@@ -278,17 +278,19 @@ paths:
   /admin/orders:
     get:
       tags: [Admin Orders]
-      summary: List all orders
+      summary: List orders (paginated)
       security: [{ basicAuth: [] }]
       parameters:
         - { name: status, in: query, required: false, schema: { $ref: '#/components/schemas/OrderStatus' }, description: Filter by order status }
         - { name: sort, in: query, required: false, schema: { type: string }, description: "propiedad,asc|desc — whitelist: createdAt, total, status (default createdAt,desc)" }
+        - { name: page, in: query, required: false, schema: { type: integer, default: 0, minimum: 0 }, description: 0-based page index }
+        - { name: size, in: query, required: false, schema: { type: integer, default: 25, enum: [10, 25, 50, 100] }, description: "Page size; any other value is coerced to 25" }
       responses:
         '200':
-          description: Orders
+          description: A page of orders
           content:
             application/json:
-              schema: { type: array, items: { $ref: '#/components/schemas/OrderResponse' } }
+              schema: { $ref: '#/components/schemas/OrderPage' }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
   /admin/orders/{id}:
@@ -592,6 +594,15 @@ components:
         toStatus: { $ref: '#/components/schemas/OrderStatus' }
         actor: { type: [string, "null"], description: "Admin username who made the change; null for the customer creation event" }
         occurredAt: { type: string, format: date-time }
+
+    OrderPage:
+      type: object
+      properties:
+        content: { type: array, items: { $ref: '#/components/schemas/OrderResponse' } }
+        totalElements: { type: integer }
+        totalPages: { type: integer }
+        number: { type: integer, description: 0-based page index }
+        size: { type: integer }
 
     ApiError:
       type: object

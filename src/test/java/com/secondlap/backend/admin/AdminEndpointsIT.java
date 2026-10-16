@@ -407,9 +407,10 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
 
         mockMvc.perform(get("/api/v1/admin/orders").with(httpBasic("admin", "admin123")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(2)))
-                .andExpect(jsonPath("$[0].customer.whatsapp", org.hamcrest.Matchers.is("9990005678")))
-                .andExpect(jsonPath("$[1].customer.whatsapp", org.hamcrest.Matchers.is("9990001234")));
+                .andExpect(jsonPath("$.totalElements", org.hamcrest.Matchers.is(2)))
+                .andExpect(jsonPath("$.content", org.hamcrest.Matchers.hasSize(2)))
+                .andExpect(jsonPath("$.content[0].customer.whatsapp", org.hamcrest.Matchers.is("9990005678")))
+                .andExpect(jsonPath("$.content[1].customer.whatsapp", org.hamcrest.Matchers.is("9990001234")));
     }
 
     @Test
@@ -548,32 +549,41 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
         mockMvc.perform(get("/api/v1/admin/orders").param("status", "cancelado")
                         .with(httpBasic("admin", "admin123")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
-                .andExpect(jsonPath("$[0].id", org.hamcrest.Matchers.is(a)))
-                .andExpect(jsonPath("$[0].status", org.hamcrest.Matchers.is("cancelado")));
+                .andExpect(jsonPath("$.content", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$.content[0].id", org.hamcrest.Matchers.is(a)))
+                .andExpect(jsonPath("$.content[0].status", org.hamcrest.Matchers.is("cancelado")));
 
         // filter by status=pendiente returns only B
         mockMvc.perform(get("/api/v1/admin/orders").param("status", "pendiente")
                         .with(httpBasic("admin", "admin123")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
-                .andExpect(jsonPath("$[0].id", org.hamcrest.Matchers.is(b)));
+                .andExpect(jsonPath("$.content", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$.content[0].id", org.hamcrest.Matchers.is(b)));
 
-        // default (no params): newest first, both orders present
+        // default (no params): newest first, page metadata present
         mockMvc.perform(get("/api/v1/admin/orders").with(httpBasic("admin", "admin123")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(2)))
-                .andExpect(jsonPath("$[0].id", org.hamcrest.Matchers.is(b)));
+                .andExpect(jsonPath("$.content", org.hamcrest.Matchers.hasSize(2)))
+                .andExpect(jsonPath("$.content[0].id", org.hamcrest.Matchers.is(b)))
+                .andExpect(jsonPath("$.size", org.hamcrest.Matchers.is(25)))
+                .andExpect(jsonPath("$.number", org.hamcrest.Matchers.is(0)));
 
         // sort=total,asc must succeed; an invalid sort falls back without 500
         mockMvc.perform(get("/api/v1/admin/orders").param("sort", "total,asc")
                         .with(httpBasic("admin", "admin123")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(2)));
+                .andExpect(jsonPath("$.content", org.hamcrest.Matchers.hasSize(2)));
         mockMvc.perform(get("/api/v1/admin/orders").param("sort", "whatever,asc")
                         .with(httpBasic("admin", "admin123")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(2)));
+                .andExpect(jsonPath("$.content", org.hamcrest.Matchers.hasSize(2)));
+
+        // clamp: out-of-set size -> 25, negative page -> 0 (no 500)
+        mockMvc.perform(get("/api/v1/admin/orders").param("size", "100000").param("page", "-1")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size", org.hamcrest.Matchers.is(25)))
+                .andExpect(jsonPath("$.number", org.hamcrest.Matchers.is(0)));
     }
 
     private String placeOrder(String customerName, String whatsapp) throws Exception {

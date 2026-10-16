@@ -3,6 +3,7 @@ package com.secondlap.backend.order;
 import com.secondlap.backend.common.ResourceNotFoundException;
 import com.secondlap.backend.common.InvalidOrderTransitionException;
 import com.secondlap.backend.admin.CurrentAdminProvider;
+import com.secondlap.backend.common.PageResponse;
 import com.secondlap.backend.config.StoreProperties;
 import com.secondlap.backend.order.dto.OrderResponse;
 import com.secondlap.backend.product.ProductRepository;
@@ -13,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -45,7 +45,7 @@ public class AdminOrderService {
     private static final Sort DEFAULT_SORT = Sort.by(Sort.Direction.DESC, "createdAt");
 
     @Transactional(readOnly = true)
-    public List<OrderResponse> findAll(String status, String sort) {
+    public PageResponse<OrderResponse> findAll(String status, String sort, int page, int size) {
         OrderStatus statusFilter = status != null && !status.isBlank()
                 ? OrderStatus.fromValue(status)
                 : null;
@@ -53,9 +53,11 @@ public class AdminOrderService {
                 (root, query, cb) -> statusFilter == null
                         ? cb.conjunction()
                         : cb.equal(root.get("status"), statusFilter);
-        return orderRepository.findAll(spec, parseSort(sort)).stream()
-                .map(order -> orderMapper.toResponse(order, storeProperties.whatsapp()))
-                .toList();
+        org.springframework.data.domain.Pageable pageable =
+                com.secondlap.backend.common.PageSupport.toPageable(page, size, parseSort(sort));
+        return PageResponse.from(
+                orderRepository.findAll(spec, pageable)
+                        .map(order -> orderMapper.toResponse(order, storeProperties.whatsapp())));
     }
 
     private Sort parseSort(String sort) {
