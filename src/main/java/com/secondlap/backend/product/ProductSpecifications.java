@@ -18,11 +18,11 @@ public final class ProductSpecifications {
             if (filter.category() != null) {
                 predicates.add(cb.equal(root.get("category").get("publicId"), filter.category()));
             }
-            if (filter.size() != null && !filter.size().isBlank()) {
-                predicates.add(cb.equal(root.get("size"), filter.size()));
+            if (filter.sizes() != null && !filter.sizes().isEmpty()) {
+                predicates.add(root.get("size").in(filter.sizes()));
             }
-            if (filter.condition() != null) {
-                predicates.add(cb.equal(root.get("condition"), filter.condition()));
+            if (filter.conditions() != null && !filter.conditions().isEmpty()) {
+                predicates.add(root.get("condition").in(filter.conditions()));
             }
             if (filter.status() != null) {
                 predicates.add(cb.equal(root.get("status"), filter.status()));

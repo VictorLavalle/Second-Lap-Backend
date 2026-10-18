@@ -124,8 +124,10 @@ committed; rotate the password per environment. The admin panel uses HTTP Basic.
 Public (storefront):
 
 - `GET /api/v1/products` — paginated. Filters: `category` (UUID), `size` (garment
-  size), `condition`, `status`, `maxPrice`; `sort` (e.g. `price,asc`); pagination
-  `page` (0-based) and `pageSize` (default 12, max 60). Returns a page object
+  size, repeatable: `size=M&size=L`), `condition` (repeatable), `status`,
+  `maxPrice`; `sort` (e.g. `price,asc`); pagination `page` (0-based) and
+  `pageSize` (default 12, max 60). Multi-valued filters are OR within a field and
+  AND across fields. Returns a page object
   `{ content, number, size, totalElements, totalPages, last }` (`pageSize` avoids
   clashing with the `size` garment filter).
 - `GET /api/v1/products/{id}`

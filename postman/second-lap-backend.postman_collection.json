@@ -70,8 +70,10 @@
               "path": ["products"],
               "query": [
                 { "key": "category", "value": "{{categoryId}}" },
-                { "key": "size", "value": "M", "disabled": true },
-                { "key": "condition", "value": "Excelente", "disabled": true },
+                { "key": "size", "value": "M", "disabled": true, "description": "repeatable: add size=L for M OR L" },
+                { "key": "size", "value": "L", "disabled": true },
+                { "key": "condition", "value": "Excelente", "disabled": true, "description": "repeatable" },
+                { "key": "condition", "value": "Como nuevo", "disabled": true },
                 { "key": "status", "value": "disponible" },
                 { "key": "maxPrice", "value": "500" },
                 { "key": "sort", "value": "price,asc" }

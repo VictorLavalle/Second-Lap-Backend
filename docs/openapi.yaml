@@ -32,8 +32,8 @@ paths:
       summary: List products (paginated, with optional filters)
       parameters:
         - { name: category, in: query, required: false, schema: { type: string, format: uuid }, description: Public UUID of the category }
-        - { name: size, in: query, required: false, schema: { type: string }, description: "Garment size filter (e.g. M) — not pagination" }
-        - { name: condition, in: query, required: false, schema: { $ref: '#/components/schemas/ProductCondition' } }
+        - { name: size, in: query, required: false, schema: { type: array, items: { type: string } }, style: form, explode: true, description: "Garment size filter — repeatable (size=M&size=L) or CSV; OR within sizes, AND with other filters" }
+        - { name: condition, in: query, required: false, schema: { type: array, items: { $ref: '#/components/schemas/ProductCondition' } }, style: form, explode: true, description: "Repeatable (condition=Excelente&condition=Como nuevo); OR within conditions, AND with other filters" }
         - { name: status, in: query, required: false, schema: { $ref: '#/components/schemas/ProductStatus' } }
         - { name: maxPrice, in: query, required: false, schema: { type: number } }
         - { name: sort, in: query, required: false, schema: { type: string }, description: "e.g. price,asc or price,desc" }

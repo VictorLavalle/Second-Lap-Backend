@@ -190,6 +190,51 @@ class CatalogReadEndpointsIT extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void filtersByMultipleSizesAndConditions() throws Exception {
+        // sizes M (x2) OR L (x1) -> 3 products
+        mockMvc.perform(get("/api/v1/products").param("size", "M").param("size", "L"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(3)));
+
+        // conditions Excelente (x3) OR 'Como nuevo' (x2) -> 5
+        mockMvc.perform(get("/api/v1/products")
+                        .param("condition", "Excelente").param("condition", "Como nuevo"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(5)));
+
+        // AND across fields: size in {M,L} AND condition 'Buen estado' -> only the
+        // 'Chamarra de mezclilla' (M, Buen estado); the L 'Playera estampada' is Buen estado too
+        mockMvc.perform(get("/api/v1/products")
+                        .param("size", "M").param("size", "L").param("condition", "Buen estado"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(2)));
+
+        // CSV form also works (single param with commas)
+        mockMvc.perform(get("/api/v1/products").param("size", "M,L"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(3)));
+
+        // backward compatibility: a single value still works
+        mockMvc.perform(get("/api/v1/products").param("size", "32"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].name", is("Jeans slim azul")));
+
+        // invalid condition value -> 400 (consistent with single-value behaviour)
+        mockMvc.perform(get("/api/v1/products").param("condition", "Excelente").param("condition", "Inventada"))
+                .andExpect(status().isBadRequest());
+
+        // multi-filter combined with pagination + sort
+        mockMvc.perform(get("/api/v1/products")
+                        .param("size", "M").param("size", "L")
+                        .param("sort", "price,asc").param("pageSize", "2").param("page", "0"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(2)))
+                .andExpect(jsonPath("$.totalElements", is(3)))
+                .andExpect(jsonPath("$.last", is(false)));
+    }
+
+    @Test
     void returnsBadRequestForMalformedProductId() throws Exception {
         mockMvc.perform(get("/api/v1/products/{id}", "not-a-uuid"))
                 .andExpect(status().isBadRequest())
