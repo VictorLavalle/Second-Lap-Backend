@@ -85,7 +85,7 @@ public class Order {
     private List<OrderItem> items = new ArrayList<>();
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
-    @org.hibernate.annotations.OrderBy(clause = "occurred_at ASC")
+    @jakarta.persistence.OrderBy("occurredAt ASC")
     private List<OrderEvent> events = new ArrayList<>();
 
     protected Order() {
