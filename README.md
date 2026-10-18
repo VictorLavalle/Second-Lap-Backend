@@ -145,14 +145,20 @@ Admin (HTTP Basic, ADMIN role):
   `page`/`size`.
   `GET /api/v1/admin/orders/{id}` (single order with its status timeline)
 - Order lifecycle transitions (each stamps a milestone timestamp and appends a
-  status-change event to the order's timeline):
+  status-change event with the acting admin to the order's timeline). Use either
+  the generic endpoint or the legacy per-action ones:
+  - `PATCH /api/v1/admin/orders/{id}/status` with body `{ "status": "<value>" }` —
+    generic, workflow-validated transition (preferred).
   - `PATCH /api/v1/admin/orders/{id}/confirm` — `pendiente → confirmado` (products become `vendido`)
   - `PATCH /api/v1/admin/orders/{id}/complete` — `confirmado → completado`
   - `PATCH /api/v1/admin/orders/{id}/deliver` — `completado → entregado`
-  - `PATCH /api/v1/admin/orders/{id}/cancel` — `pendiente → cancelado` (releases items back to `disponible`)
+  - `PATCH /api/v1/admin/orders/{id}/cancel` — cancel (releases items back to `disponible`)
 
-  Only these transitions are allowed; any other returns `409 INVALID_ORDER_TRANSITION`.
-  A confirmado/completado/entregado order cannot be cancelled (inventory is already sold).
+  Workflow (single source of truth): `pendiente → confirmado`,
+  `confirmado → completado`, `completado → entregado`, and `cancelado` from any
+  non-terminal state (`pendiente`/`confirmado`/`completado`). `entregado` and
+  `cancelado` are terminal. Any disallowed move returns
+  `409 INVALID_ORDER_TRANSITION`; an unknown status value returns `400`.
 
 ## Tests
 

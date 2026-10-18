@@ -343,6 +343,15 @@
           }
         },
         {
+          "name": "PATCH cambiar estado (genérico)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"confirmado\"\n}" },
+            "url": { "raw": "{{apiBase}}/admin/orders/{{orderId}}/status", "host": ["{{apiBase}}"], "path": ["admin", "orders", "{{orderId}}", "status"] }
+          }
+        },
+        {
           "name": "GET orden por id (timeline)",
           "request": {
             "method": "GET",

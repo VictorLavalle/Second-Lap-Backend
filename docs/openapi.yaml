@@ -318,6 +318,43 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /admin/orders/{id}/status:
+    patch:
+      tags: [Admin Orders]
+      summary: Change an order's status (workflow-validated)
+      description: >
+        Generic state transition. Allowed moves: pendiente→confirmado,
+        confirmado→completado, completado→entregado, and cancelado from any
+        non-terminal state (pendiente/confirmado/completado). Confirming marks
+        the order's products 'vendido'; cancelling releases them back to
+        'disponible'. Any other move returns 409.
+      security: [{ basicAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { $ref: '#/components/schemas/OrderStatus' }
+      responses:
+        '200':
+          description: Order updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The transition is not allowed by the workflow
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
   /admin/orders/{id}/confirm:
     patch:
       tags: [Admin Orders]
@@ -384,7 +421,7 @@ paths:
   /admin/orders/{id}/cancel:
     patch:
       tags: [Admin Orders]
-      summary: Cancel an order (releases its items back to 'disponible')
+      summary: Cancel an order (valid from any non-terminal state; releases items to 'disponible')
       security: [{ basicAuth: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
@@ -397,7 +434,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409':
-          description: The order is not PENDING, so it cannot be cancelled
+          description: The order is already terminal (entregado/cancelado), so it cannot be cancelled
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }

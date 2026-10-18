@@ -323,37 +323,6 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void rejectsCancellingAConfirmedOrderWithoutResurrectingProducts() throws Exception {
-        String productId = availableProductId();
-        String orderBody = """
-                {
-                  "productIds": ["%s"],
-                  "customer": {"name": "NoCancelar", "whatsapp": "9990002222"},
-                  "deliveryMethod": "recoger",
-                  "paymentMethod": "efectivo"
-                }
-                """.formatted(productId);
-        String orderResponse = mockMvc.perform(post("/api/v1/orders")
-                        .contentType(MediaType.APPLICATION_JSON).content(orderBody))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-        String orderId = com.jayway.jsonpath.JsonPath.parse(orderResponse).read("$.id", String.class);
-
-        mockMvc.perform(patch("/api/v1/admin/orders/" + orderId + "/confirm")
-                        .with(httpBasic("admin", "admin123")))
-                .andExpect(status().isOk());
-
-        mockMvc.perform(patch("/api/v1/admin/orders/" + orderId + "/cancel")
-                        .with(httpBasic("admin", "admin123")))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code", org.hamcrest.Matchers.is("INVALID_ORDER_TRANSITION")));
-
-        // the confirmed order's product stays sold; cancel must not resurrect it
-        assertThat(productRepository.findByPublicId(java.util.UUID.fromString(productId))
-                .orElseThrow().getStatus()).isEqualTo(ProductStatus.VENDIDO);
-    }
-
-    @Test
     void rejectsConfirmingAnAlreadyCancelledOrder() throws Exception {
         String productId = availableProductId();
         String orderBody = """
@@ -382,6 +351,102 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
         // the cancelled order released its product; confirm must not sell it
         assertThat(productRepository.findByPublicId(java.util.UUID.fromString(productId))
                 .orElseThrow().getStatus()).isEqualTo(ProductStatus.DISPONIBLE);
+    }
+
+    @Test
+    void changesStatusViaGenericEndpointThroughFullLifecycle() throws Exception {
+        String orderId = placeOrder("Genérico", "9990007001");
+
+        changeStatus(orderId, "confirmado")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", org.hamcrest.Matchers.is("confirmado")))
+                .andExpect(jsonPath("$.confirmedAt", org.hamcrest.Matchers.notNullValue()));
+        changeStatus(orderId, "completado")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", org.hamcrest.Matchers.is("completado")));
+        changeStatus(orderId, "entregado")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", org.hamcrest.Matchers.is("entregado")))
+                .andExpect(jsonPath("$.events", org.hamcrest.Matchers.hasSize(4)))
+                .andExpect(jsonPath("$.events[3].actor", org.hamcrest.Matchers.is("admin")));
+    }
+
+    @Test
+    void rejectsInvalidTransitionWith409() throws Exception {
+        String orderId = placeOrder("Inválido", "9990007002");
+        // pendiente -> entregado is not in the workflow
+        changeStatus(orderId, "entregado")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code", org.hamcrest.Matchers.is("INVALID_ORDER_TRANSITION")));
+    }
+
+    @Test
+    void rejectsUnknownStatusWith400() throws Exception {
+        String orderId = placeOrder("Desconocido", "9990007003");
+        changeStatus(orderId, "foobar")
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void rejectsAnyTransitionOutOfATerminalState() throws Exception {
+        String orderId = placeOrder("Terminal", "9990007004");
+        changeStatus(orderId, "cancelado").andExpect(status().isOk());
+        // cancelado is terminal: no further transition allowed
+        changeStatus(orderId, "confirmado")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code", org.hamcrest.Matchers.is("INVALID_ORDER_TRANSITION")));
+    }
+
+    @Test
+    void cancelFromConfirmedReleasesSoldInventory() throws Exception {
+        String productId = availableProductId();
+        String orderId = placeOrderFor(productId, "CancelConfirmed", "9990007005");
+
+        changeStatus(orderId, "confirmado").andExpect(status().isOk());
+        assertThat(productRepository.findByPublicId(java.util.UUID.fromString(productId))
+                .orElseThrow().getStatus()).isEqualTo(ProductStatus.VENDIDO);
+
+        changeStatus(orderId, "cancelado").andExpect(status().isOk());
+        // product goes from vendido back to disponible
+        assertThat(productRepository.findByPublicId(java.util.UUID.fromString(productId))
+                .orElseThrow().getStatus()).isEqualTo(ProductStatus.DISPONIBLE);
+    }
+
+    @Test
+    void cancelFromCompletedReleasesSoldInventory() throws Exception {
+        String productId = availableProductId();
+        String orderId = placeOrderFor(productId, "CancelCompleted", "9990007006");
+
+        changeStatus(orderId, "confirmado").andExpect(status().isOk());
+        changeStatus(orderId, "completado").andExpect(status().isOk());
+        changeStatus(orderId, "cancelado").andExpect(status().isOk());
+
+        assertThat(productRepository.findByPublicId(java.util.UUID.fromString(productId))
+                .orElseThrow().getStatus()).isEqualTo(ProductStatus.DISPONIBLE);
+    }
+
+    private org.springframework.test.web.servlet.ResultActions changeStatus(String orderId, String status)
+            throws Exception {
+        return mockMvc.perform(patch("/api/v1/admin/orders/" + orderId + "/status")
+                .with(httpBasic("admin", "admin123"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"" + status + "\"}"));
+    }
+
+    private String placeOrderFor(String productId, String customerName, String whatsapp) throws Exception {
+        String body = """
+                {
+                  "productIds": ["%s"],
+                  "customer": {"name": "%s", "whatsapp": "%s"},
+                  "deliveryMethod": "recoger",
+                  "paymentMethod": "efectivo"
+                }
+                """.formatted(productId, customerName, whatsapp);
+        String response = mockMvc.perform(post("/api/v1/orders")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return com.jayway.jsonpath.JsonPath.parse(response).read("$.id", String.class);
     }
 
     @Test

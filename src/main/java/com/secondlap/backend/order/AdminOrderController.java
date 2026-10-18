@@ -36,6 +36,14 @@ public class AdminOrderController {
         return adminOrderService.findByPublicId(id);
     }
 
+    @PatchMapping("/{id}/status")
+    public OrderResponse changeStatus(
+            @PathVariable UUID id,
+            @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody
+            com.secondlap.backend.order.dto.UpdateOrderStatusRequest request) {
+        return adminOrderService.changeStatus(id, request.status());
+    }
+
     @PatchMapping("/{id}/confirm")
     public OrderResponse confirm(@PathVariable UUID id) {
         return adminOrderService.confirm(id);

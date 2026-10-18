@@ -107,67 +107,71 @@ public class AdminOrderService {
     }
 
     public OrderResponse confirm(UUID publicId) {
-        Order order = getByPublicId(publicId);
-        requireStatus(order, OrderStatus.PENDING, "confirmar");
-        String actor = transitionTo(order, OrderStatus.CONFIRMED);
-        order.setConfirmedAt(OffsetDateTime.now(java.time.ZoneOffset.UTC));
-        for (OrderItem item : order.getItems()) {
-            item.getProduct().setStatus(com.secondlap.backend.product.ProductStatus.VENDIDO);
-        }
-        log.info("admin '{}' confirmó el pedido {}: {} producto(s) marcados como vendido",
-                actor, publicId, order.getItems().size());
-        return orderMapper.toResponse(order, storeProperties.whatsapp());
+        return transition(getByPublicId(publicId), OrderStatus.CONFIRMED);
     }
 
     public OrderResponse complete(UUID publicId) {
-        Order order = getByPublicId(publicId);
-        requireStatus(order, OrderStatus.CONFIRMED, "completar");
-        String actor = transitionTo(order, OrderStatus.COMPLETED);
-        order.setCompletedAt(OffsetDateTime.now(java.time.ZoneOffset.UTC));
-        log.info("admin '{}' completó el pedido {}", actor, publicId);
-        return orderMapper.toResponse(order, storeProperties.whatsapp());
+        return transition(getByPublicId(publicId), OrderStatus.COMPLETED);
     }
 
     public OrderResponse deliver(UUID publicId) {
-        Order order = getByPublicId(publicId);
-        requireStatus(order, OrderStatus.COMPLETED, "entregar");
-        String actor = transitionTo(order, OrderStatus.DELIVERED);
-        order.setDeliveredAt(OffsetDateTime.now(java.time.ZoneOffset.UTC));
-        log.info("admin '{}' entregó el pedido {}", actor, publicId);
-        return orderMapper.toResponse(order, storeProperties.whatsapp());
+        return transition(getByPublicId(publicId), OrderStatus.DELIVERED);
+    }
+
+    public OrderResponse cancel(UUID publicId) {
+        return transition(getByPublicId(publicId), OrderStatus.CANCELLED);
+    }
+
+    public OrderResponse changeStatus(UUID publicId, String statusValue) {
+        return transition(getByPublicId(publicId), OrderStatus.fromValue(statusValue));
     }
 
     /**
-     * Cancel an order and release its items back to 'disponible'. The release uses
-     * the guarded conditional UPDATE so a product already reassigned to another
-     * order is never resurrected.
+     * The single, workflow-validated path for every order state change. Validates
+     * the transition against {@link OrderStatus}'s allowed table, records the
+     * timeline event with the acting admin, applies the target's inventory effect
+     * and stamps its milestone.
      */
-    public OrderResponse cancel(UUID publicId) {
-        Order order = getByPublicId(publicId);
-        requireStatus(order, OrderStatus.PENDING, "cancelar");
-        String actor = transitionTo(order, OrderStatus.CANCELLED);
-        order.setCancelledAt(OffsetDateTime.now(java.time.ZoneOffset.UTC));
-        int released = 0;
-        for (OrderItem item : order.getItems()) {
-            released += productRepository.releaseToAvailable(item.getProduct().getId());
-        }
-        log.info("admin '{}' canceló el pedido {}: {} producto(s) liberados a disponible",
-                actor, publicId, released);
-        return orderMapper.toResponse(order, storeProperties.whatsapp());
-    }
-
-    private String transitionTo(Order order, OrderStatus target) {
-        String actor = currentAdminProvider.username();
-        order.recordEvent(order.getStatus(), target, actor);
-        order.setStatus(target);
-        return actor;
-    }
-
-    private void requireStatus(Order order, OrderStatus expected, String action) {
-        if (order.getStatus() != expected) {
+    private OrderResponse transition(Order order, OrderStatus target) {
+        OrderStatus from = order.getStatus();
+        if (!from.canTransitionTo(target)) {
             throw new InvalidOrderTransitionException(
-                    "No se puede " + action + " un pedido en estado " + order.getStatus().getValue());
+                    "No se puede cambiar un pedido de " + from.getValue() + " a " + target.getValue());
         }
+        String actor = currentAdminProvider.username();
+        order.recordEvent(from, target, actor);
+        order.setStatus(target);
+        OffsetDateTime now = OffsetDateTime.now(java.time.ZoneOffset.UTC);
+
+        switch (target) {
+            case CONFIRMED -> {
+                order.setConfirmedAt(now);
+                for (OrderItem item : order.getItems()) {
+                    item.getProduct().setStatus(com.secondlap.backend.product.ProductStatus.VENDIDO);
+                }
+                log.info("admin '{}' confirmó el pedido {}: {} producto(s) marcados como vendido",
+                        actor, order.getPublicId(), order.getItems().size());
+            }
+            case COMPLETED -> {
+                order.setCompletedAt(now);
+                log.info("admin '{}' completó el pedido {}", actor, order.getPublicId());
+            }
+            case DELIVERED -> {
+                order.setDeliveredAt(now);
+                log.info("admin '{}' entregó el pedido {}", actor, order.getPublicId());
+            }
+            case CANCELLED -> {
+                order.setCancelledAt(now);
+                int released = 0;
+                for (OrderItem item : order.getItems()) {
+                    released += productRepository.releaseToAvailable(item.getProduct().getId());
+                }
+                log.info("admin '{}' canceló el pedido {}: {} producto(s) liberados a disponible",
+                        actor, order.getPublicId(), released);
+            }
+            default -> { /* PENDING is never a transition target */ }
+        }
+        return orderMapper.toResponse(order, storeProperties.whatsapp());
     }
 
     private Order getByPublicId(UUID publicId) {
