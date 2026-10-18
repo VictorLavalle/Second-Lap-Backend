@@ -23,10 +23,12 @@ public class AdminOrderController {
     @GetMapping
     public com.secondlap.backend.common.PageResponse<OrderResponse> getOrders(
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String deliveryMethod,
+            @RequestParam(required = false) String q,
             @RequestParam(required = false) String sort,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "25") int size) {
-        return adminOrderService.findAll(status, sort, page, size);
+        return adminOrderService.findAll(status, deliveryMethod, q, sort, page, size);
     }
 
     @GetMapping("/{id}")

@@ -45,14 +45,40 @@ public class AdminOrderService {
     private static final Sort DEFAULT_SORT = Sort.by(Sort.Direction.DESC, "createdAt");
 
     @Transactional(readOnly = true)
-    public PageResponse<OrderResponse> findAll(String status, String sort, int page, int size) {
+    public PageResponse<OrderResponse> findAll(String status, String deliveryMethod, String q,
+                                               String sort, int page, int size) {
         OrderStatus statusFilter = status != null && !status.isBlank()
                 ? OrderStatus.fromValue(status)
                 : null;
-        org.springframework.data.jpa.domain.Specification<Order> spec =
-                (root, query, cb) -> statusFilter == null
-                        ? cb.conjunction()
-                        : cb.equal(root.get("status"), statusFilter);
+        DeliveryMethod deliveryFilter = deliveryMethod != null && !deliveryMethod.isBlank()
+                ? DeliveryMethod.fromValue(deliveryMethod)
+                : null;
+        String term = q != null && !q.isBlank() ? q.trim().toLowerCase() : null;
+
+        org.springframework.data.jpa.domain.Specification<Order> spec = (root, query, cb) -> {
+            java.util.List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+            if (statusFilter != null) {
+                predicates.add(cb.equal(root.get("status"), statusFilter));
+            }
+            if (deliveryFilter != null) {
+                predicates.add(cb.equal(root.get("deliveryMethod"), deliveryFilter));
+            }
+            if (term != null) {
+                // Match the short order number (UUID prefix) OR the customer name
+                // (contains). public_id is cast to text with a real SQL cast so a
+                // non-UUID term never breaks the query — it just won't match by id.
+                // Postgres renders a UUID as lowercase text, and 'term' is already
+                // lowercased, so the id side needs no lower().
+                jakarta.persistence.criteria.Expression<String> idAsText =
+                        cb.function("str", String.class, root.get("publicId"));
+                jakarta.persistence.criteria.Predicate byId = cb.like(cb.lower(idAsText), term + "%");
+                jakarta.persistence.criteria.Predicate byName = cb.like(
+                        cb.lower(root.get("customer").get("name")), "%" + term + "%");
+                predicates.add(cb.or(byId, byName));
+            }
+            return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
+
         org.springframework.data.domain.Pageable pageable =
                 com.secondlap.backend.common.PageSupport.toPageable(page, size, parseSort(sort));
         return PageResponse.from(

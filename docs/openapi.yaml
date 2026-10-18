@@ -288,6 +288,8 @@ paths:
       security: [{ basicAuth: [] }]
       parameters:
         - { name: status, in: query, required: false, schema: { $ref: '#/components/schemas/OrderStatus' }, description: Filter by order status }
+        - { name: deliveryMethod, in: query, required: false, schema: { $ref: '#/components/schemas/DeliveryMethod' }, description: Filter by delivery method }
+        - { name: q, in: query, required: false, schema: { type: string }, description: "Free-text search: matches the order's short id (UUID prefix, case-insensitive) OR the customer name (contains)" }
         - { name: sort, in: query, required: false, schema: { type: string }, description: "propiedad,asc|desc — whitelist: createdAt, total, status (default createdAt,desc)" }
         - { name: page, in: query, required: false, schema: { type: integer, default: 0, minimum: 0 }, description: 0-based page index }
         - { name: size, in: query, required: false, schema: { type: integer, default: 25, enum: [10, 25, 50, 100] }, description: "Page size; any other value is coerced to 25" }

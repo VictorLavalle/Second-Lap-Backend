@@ -591,6 +591,74 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
                 .andExpect(jsonPath("$.number", org.hamcrest.Matchers.is(0)));
     }
 
+    @Test
+    void searchesAndFiltersAdminOrders() throws Exception {
+        // a 'recoger' order for "Mariana López"
+        String pickupId = placeOrder("Mariana López", "9990006061");
+        // a 'domicilio' order for "Carlos Ruiz" (needs an address)
+        String homeBody = """
+                {
+                  "productIds": ["%s"],
+                  "customer": {"name": "Carlos Ruiz", "whatsapp": "9990006062"},
+                  "deliveryMethod": "domicilio",
+                  "paymentMethod": "transferencia",
+                  "address": {"street": "Calle 1", "neighborhood": "Caucel", "city": "Mérida", "postalCode": "97314"}
+                }
+                """.formatted(availableProductId());
+        String homeResp = mockMvc.perform(post("/api/v1/orders")
+                        .contentType(MediaType.APPLICATION_JSON).content(homeBody))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String homeId = com.jayway.jsonpath.JsonPath.parse(homeResp).read("$.id", String.class);
+
+        // deliveryMethod filter: only the domicilio order
+        mockMvc.perform(get("/api/v1/admin/orders").param("deliveryMethod", "domicilio")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$.content[0].id", org.hamcrest.Matchers.is(homeId)));
+
+        // deliveryMethod invalid -> 400 (consistent with status)
+        mockMvc.perform(get("/api/v1/admin/orders").param("deliveryMethod", "teletransporte")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isBadRequest());
+
+        // q by UUID short prefix (uppercase, case-insensitive) finds the order
+        String prefix = pickupId.substring(0, 8).toUpperCase();
+        mockMvc.perform(get("/api/v1/admin/orders").param("q", prefix)
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$.content[0].id", org.hamcrest.Matchers.is(pickupId)));
+
+        // q by customer name (contains, case-insensitive)
+        mockMvc.perform(get("/api/v1/admin/orders").param("q", "mariana")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$.content[0].customer.name", org.hamcrest.Matchers.is("Mariana López")));
+
+        // q with no match -> empty
+        mockMvc.perform(get("/api/v1/admin/orders").param("q", "zzz-no-match")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", org.hamcrest.Matchers.hasSize(0)));
+
+        // q that is not a UUID must not break the query (just no id match)
+        mockMvc.perform(get("/api/v1/admin/orders").param("q", "'; DROP TABLE orders; --")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk());
+
+        // combined: status + deliveryMethod + q + sort
+        mockMvc.perform(get("/api/v1/admin/orders")
+                        .param("status", "pendiente").param("deliveryMethod", "domicilio")
+                        .param("q", "carlos").param("sort", "createdAt,asc")
+                        .with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$.content[0].id", org.hamcrest.Matchers.is(homeId)));
+    }
+
     private String placeOrder(String customerName, String whatsapp) throws Exception {
         String body = """
                 {
