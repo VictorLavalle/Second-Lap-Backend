@@ -18,10 +18,14 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     private static final String REQUEST_ID = "requestId";
+    private static final String NO_STORE =
+            org.springframework.http.CacheControl.noStore().getHeaderValue();
 
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ApiError> handleNotFound(ResourceNotFoundException ex) {
+    public ResponseEntity<ApiError> handleNotFound(ResourceNotFoundException ex,
+                                                   jakarta.servlet.http.HttpServletResponse response) {
         log.debug("Resource not found: {}", ex.getMessage());
+        response.setHeader(org.springframework.http.HttpHeaders.CACHE_CONTROL, NO_STORE);
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiError.of("NOT_FOUND", ex.getMessage()));
     }
@@ -76,10 +80,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ApiError> handleTypeMismatch(
-            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException ex) {
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException ex,
+            jakarta.servlet.http.HttpServletResponse response) {
         // Only the parameter name is exposed: the raw value could reflect
         // unsanitized client input back in the response.
         log.debug("Invalid parameter: {}", ex.getName());
+        response.setHeader(org.springframework.http.HttpHeaders.CACHE_CONTROL, NO_STORE);
         return ResponseEntity.badRequest()
                 .body(ApiError.of("INVALID_PARAMETER", "Parámetro inválido: " + ex.getName()));
     }

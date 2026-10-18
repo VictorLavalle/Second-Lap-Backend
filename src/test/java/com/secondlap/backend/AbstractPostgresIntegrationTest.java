@@ -48,6 +48,7 @@ public abstract class AbstractPostgresIntegrationTest {
         registry.add("spring.datasource.hikari.maximum-pool-size", () -> "30");
         registry.add("spring.flyway.clean-disabled", () -> "false");
         registry.add("secondlap.cors.allowed-origins", () -> "http://localhost:3000");
+        registry.add("secondlap.cache.public-reads.max-age-seconds", () -> "15");
         registry.add("secondlap.admin.username", () -> "admin");
         registry.add("secondlap.admin.password", () -> "admin123");
         registry.add("secondlap.store.whatsapp", () -> "529996384026");

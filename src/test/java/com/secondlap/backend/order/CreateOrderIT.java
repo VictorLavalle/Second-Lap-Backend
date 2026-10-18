@@ -63,6 +63,8 @@ class CreateOrderIT extends AbstractPostgresIntegrationTest {
 
         mockMvc.perform(post("/api/v1/orders").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.status", org.hamcrest.Matchers.is("pendiente")))
                 .andExpect(jsonPath("$.deliveryMethod", org.hamcrest.Matchers.is("recoger")))
                 .andExpect(jsonPath("$.address").doesNotExist())

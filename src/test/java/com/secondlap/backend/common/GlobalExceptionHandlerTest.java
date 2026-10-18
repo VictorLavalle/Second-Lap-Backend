@@ -27,7 +27,8 @@ class GlobalExceptionHandlerTest {
         var ex = new org.springframework.web.method.annotation.MethodArgumentTypeMismatchException(
                 "not-a-uuid", java.util.UUID.class, "id", null, new IllegalArgumentException("bad uuid"));
 
-        ResponseEntity<ApiError> response = handler.handleTypeMismatch(ex);
+        ResponseEntity<ApiError> response = handler.handleTypeMismatch(ex,
+                new org.springframework.mock.web.MockHttpServletResponse());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody().code()).isEqualTo("INVALID_PARAMETER");
@@ -103,7 +104,8 @@ class GlobalExceptionHandlerTest {
     @Test
     void clientErrorsHaveNoContext() {
         ResponseEntity<ApiError> notFound =
-                handler.handleNotFound(new ResourceNotFoundException("missing"));
+                handler.handleNotFound(new ResourceNotFoundException("missing"),
+                        new org.springframework.mock.web.MockHttpServletResponse());
         assertThat(notFound.getBody().context()).isNull();
 
         ResponseEntity<ApiError> transition =

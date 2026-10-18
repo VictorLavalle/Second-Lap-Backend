@@ -32,6 +32,9 @@ server:
 secondlap:
   cors:
     allowed-origins: ${SECONDLAP_CORS_ALLOWED_ORIGINS}
+  cache:
+    public-reads:
+      max-age-seconds: ${SECONDLAP_CACHE_PUBLIC_MAX_AGE}
   storage:
     local:
       base-path: ${SECONDLAP_UPLOADS_DIR}
