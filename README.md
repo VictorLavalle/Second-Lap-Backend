@@ -139,7 +139,10 @@ Admin (HTTP Basic, ADMIN role):
 
 - `POST/PUT/DELETE /api/v1/admin/products`, `PATCH /api/v1/admin/products/{id}/status`
 - `POST /api/v1/admin/products/{id}/images` (multipart)
-- `GET /api/v1/admin/orders` (newest first),
+- `GET /api/v1/admin/orders` — paginated, newest first. Filters: `status`,
+  `deliveryMethod`, `q` (free-text search over the order's short id prefix or the
+  customer name); `sort` (`createdAt`/`total`/`status`, default `createdAt,desc`);
+  `page`/`size`.
   `GET /api/v1/admin/orders/{id}` (single order with its status timeline)
 - Order lifecycle transitions (each stamps a milestone timestamp and appends a
   status-change event to the order's timeline):
