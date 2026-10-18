@@ -11,6 +11,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -232,6 +233,27 @@ class CatalogReadEndpointsIT extends AbstractPostgresIntegrationTest {
                 .andExpect(jsonPath("$.content", hasSize(2)))
                 .andExpect(jsonPath("$.totalElements", is(3)))
                 .andExpect(jsonPath("$.last", is(false)));
+    }
+
+    @Test
+    void publicCatalogReadsCarryShortCacheControl() throws Exception {
+        String expected = "max-age=15, public";
+        mockMvc.perform(get("/api/v1/products"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", expected));
+        mockMvc.perform(get("/api/v1/categories"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", expected));
+    }
+
+    @Test
+    void errorsOnPublicReadPathsAreNotPubliclyCached() throws Exception {
+        mockMvc.perform(get("/api/v1/products/{id}", "00000000-0000-0000-0000-000000000000"))
+                .andExpect(status().isNotFound())
+                .andExpect(header().string("Cache-Control", "no-store"));
+        mockMvc.perform(get("/api/v1/products/{id}", "not-a-uuid"))
+                .andExpect(status().isBadRequest())
+                .andExpect(header().string("Cache-Control", "no-store"));
     }
 
     @Test

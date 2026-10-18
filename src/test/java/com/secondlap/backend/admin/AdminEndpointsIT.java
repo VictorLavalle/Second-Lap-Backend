@@ -23,6 +23,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @AutoConfigureMockMvc
@@ -447,6 +448,13 @@ class AdminEndpointsIT extends AbstractPostgresIntegrationTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         return com.jayway.jsonpath.JsonPath.parse(response).read("$.id", String.class);
+    }
+
+    @Test
+    void adminReadsAreNotPubliclyCacheable() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/orders").with(httpBasic("admin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"));
     }
 
     @Test
