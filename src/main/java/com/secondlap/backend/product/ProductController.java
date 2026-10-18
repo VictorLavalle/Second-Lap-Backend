@@ -25,18 +25,26 @@ public class ProductController {
     @GetMapping
     public com.secondlap.backend.common.PageResponse<ProductResponse> getProducts(
             @RequestParam(required = false) UUID category,
-            @RequestParam(required = false) String size,
-            @RequestParam(required = false) String condition,
+            @RequestParam(required = false) java.util.List<String> size,
+            @RequestParam(required = false) java.util.List<String> condition,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) BigDecimal maxPrice,
             @RequestParam(required = false) String sort,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(name = "pageSize", defaultValue = "12") int pageSize) {
 
+        java.util.List<String> sizes = size == null ? java.util.List.of()
+                : size.stream().filter(s -> s != null && !s.isBlank()).toList();
+        java.util.List<ProductCondition> conditions = condition == null ? java.util.List.of()
+                : condition.stream()
+                        .filter(c -> c != null && !c.isBlank())
+                        .map(ProductCondition::fromValue)
+                        .toList();
+
         ProductFilter filter = new ProductFilter(
                 category,
-                size,
-                condition != null ? ProductCondition.fromValue(condition) : null,
+                sizes,
+                conditions,
                 status != null ? ProductStatus.fromValue(status) : null,
                 maxPrice);
 
